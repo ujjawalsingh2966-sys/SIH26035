@@ -1,0 +1,9 @@
+# Phase 0 Blocker Register
+
+| ID | Priority | Blocker | Why it matters | Evidence needed | Who should confirm it | Blocks which future phase | Current status |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **BLK-01** | CRITICAL | Missing official SIH Problem Statement and Domain Report. | Cannot fully triangulate requirements assuming the SRS holds exclusive, unconflicted precedence when conflicting edge cases emerge. | The missing domain document or SIH problem ID. | Project Sponsor / Documentation Lead | Phase 1 (Mathematical Specs) | **OPEN** |
+| **BLK-02** | CRITICAL | Exact MPE boundary rounding methodology. | If India implements a customized rounding mechanism distinct from basic OIML turning points, tests will falsely flag compliant machines as failures. | Formal statutory circular regarding computation bounds. | Legal Metrology Officer | Phase 1 & Phase 3 (Logic) | **OPEN** |
+| **BLK-03** | HIGH | Explicit PDF Certificate Format. | Generating non-standard PDFs risks systemic non-compliance with the Seventh Schedule reporting norms. | A true PDF mock/scan of an approved testing annexure. | Dept. of Consumer Affairs / Metrology Officer | Phase 6 & Phase 11 (Reports) | **OPEN** |
+| **BLK-04** | HIGH | True Integration Constraints (NSWS Portal). | If integration with the central model approval portal is structurally required to pass, isolated sandboxed systems fail validation. | Operational deployment documentation explicitly detailing the problem boundary. | SIH Hackathon Authority | Phase 10 | **OPEN** |
+| **BLK-05** | MEDIUM | Scope of Mechanical NAWIs. | UI validations expecting numeric screens and digital divisions ($d$) may crash or block input based strictly on manual sliding pointers. | Clarification bounding scope strictly to "Electronic". | Project Sponsor | Phase 12 (Frontend UI) | **OPEN** |
