@@ -1,0 +1,14 @@
+# Node
+node_modules/
+dist/
+coverage/
+.next/
+out/
+.env
+
+# Next.js
+.next/
+out/
+
+# Output
+*.log

@@ -1,0 +1,16 @@
+{
+  "name": "nawi-compliance-automation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NAWI Metrology Compliance Platform",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces"
+  }
+}
