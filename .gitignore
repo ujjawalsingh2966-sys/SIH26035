@@ -12,3 +12,4 @@ out/
 
 # Output
 *.log
+data/*.json
