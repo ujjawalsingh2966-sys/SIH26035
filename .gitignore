@@ -13,3 +13,10 @@ out/
 # Output
 *.log
 data/*.json
+
+# IDE
+.idea/
+
+# Playwright
+.playwright-cli/
+
