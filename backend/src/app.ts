@@ -11,6 +11,8 @@ import { manufacturerRoutes } from './routes/manufacturerRoutes';
 import { instrumentRoutes } from './routes/instrumentRoutes';
 import { testCaseRoutes } from './routes/testCaseRoutes';
 import { observationRoutes } from './routes/observationRoutes';
+import { evidenceRoutes } from './routes/evidenceRoutes';
+import { reportRoutes } from './routes/reportRoutes';
 
 const app = express();
 
@@ -28,6 +30,8 @@ app.use('/api/v1/manufacturers', authenticate, manufacturerRoutes);
 app.use('/api/v1/instruments', authenticate, instrumentRoutes);
 app.use('/api/v1/test-cases', authenticate, testCaseRoutes);
 app.use('/api/v1/observations', authenticate, observationRoutes);
+app.use('/api/v1/evidence', authenticate, evidenceRoutes);
+app.use('/api/v1/reports', authenticate, reportRoutes);
 
 // 404 Handler
 app.use((req, res, next) => {
