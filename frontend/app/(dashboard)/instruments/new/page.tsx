@@ -36,11 +36,12 @@ export default function NewInstrumentPage() {
     }
 
     try {
+      const token = localStorage.getItem('nawi_token');
       const res = await fetch('http://localhost:4000/api/v1/instruments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer placeholder-tech-token'
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(formData)
       });
@@ -52,7 +53,7 @@ export default function NewInstrumentPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer placeholder-tech-token'
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ instrumentId: result.data.id })
         });

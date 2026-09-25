@@ -25,8 +25,11 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
 
   const fetchData = async () => {
     try {
+      const token = localStorage.getItem('nawi_token');
       // Fetch test case
-      const tcRes = await fetch(`http://localhost:4000/api/v1/test-cases`);
+      const tcRes = await fetch(`http://localhost:4000/api/v1/test-cases`, {
+         headers: { 'Authorization': `Bearer ${token}` }
+      });
       const tcData = await tcRes.json();
       const currentTc = tcData.data?.find((t: any) => t.id === params.id);
 
@@ -36,7 +39,9 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
       }
 
       // Fetch observations
-      const obsRes = await fetch(`http://localhost:4000/api/v1/observations/${params.id}`);
+      const obsRes = await fetch(`http://localhost:4000/api/v1/observations/${params.id}`, {
+         headers: { 'Authorization': `Bearer ${token}` }
+      });
       const obsData = await obsRes.json();
       setObservations(obsData.data || []);
     } catch (e) {
@@ -47,9 +52,10 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
   };
 
   const saveLabConditions = async () => {
+    const token = localStorage.getItem('nawi_token');
     await fetch(`http://localhost:4000/api/v1/test-cases/${params.id}/laboratory-conditions`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer tech' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(lab)
     });
     alert('Conditions saved');
@@ -59,10 +65,11 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
     // Determine max sequence
     const typeObs = observations.filter(o => o.testType === activeTab);
     const seq = typeObs.length + 1;
+    const token = localStorage.getItem('nawi_token');
 
     const res = await fetch(`http://localhost:4000/api/v1/observations`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer tech' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
         testCaseId: params.id,
         testType: activeTab,
@@ -81,10 +88,11 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
 
   const submitTest = async () => {
     if (!confirm('Are you sure you want to submit this test case for review? Observations will be locked.')) return;
+    const token = localStorage.getItem('nawi_token');
 
     await fetch(`http://localhost:4000/api/v1/test-cases/${params.id}/status`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer tech' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ status: 'SUBMITTED_FOR_REVIEW' })
     });
     router.push('/');
