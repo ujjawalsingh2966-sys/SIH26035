@@ -8,13 +8,13 @@ export class HtmlGenerator {
   <meta charset="utf-8">
   <title>OIML Test Report - ${report.testCaseId}</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 40px; color: #333; line-height: 1.6; }
+    body { font-family: ui-sans-serif, system-ui, sans-serif; margin: 40px; color: #333; line-height: 1.6; }
     h1, h2, h3 { color: #2c3e50; }
     .disclaimer { border: 2px dashed #e74c3c; padding: 10px; color: #e74c3c; font-weight: bold; text-align: center; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { border: 1px solid #bdc3c7; padding: 8px; text-align: left; }
     th { background-color: #ecf0f1; }
-    .seal { margin-top: 40px; padding: 20px; background-color: #f9f9f9; border-left: 5px solid #3498db; }
+    .seal { margin-top: 40px; padding: 20px; background-color: #f9f9f9; border: 1px solid #e1e4e8; border-radius: 4px; }
   </style>
 </head>
 <body>
