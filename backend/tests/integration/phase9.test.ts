@@ -1,7 +1,7 @@
 import { WorkflowService } from '../../src/services/WorkflowService';
 import { AuditService } from '../../src/services/AuditService';
-import { testCaseStore } from '../../src/repositories';
-import { TestCase } from '../../src/types/domain';
+import { testCaseStore, observationStore } from '../../src/repositories';
+import { TestCase, ObservationRecord } from '../../src/types/domain';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -27,6 +27,29 @@ describe('Phase 9 Workflow and RBAC Integration', () => {
     return tc;
   };
 
+  // Phase 8 wiring: submitForReview now requires every observation on the test case
+  // to carry a completed evaluation. This helper satisfies that gate for tests that
+  // only exercise WorkflowService's own transition/RBAC logic.
+  const setupEvaluatedObservation = (testCaseId: string) => {
+    const obs: ObservationRecord = {
+      id: `obs_test_${Date.now()}_${Math.random()}`,
+      testCaseId,
+      testType: 'WEIGHING',
+      sequence: 1,
+      load: '5000',
+      indication: '5005',
+      additionalWeights: '3',
+      evaluation: {
+        calculation: { P: { value: '5004.5', unit: 'g' }, E: { value: '4.5', unit: 'g' }, Ec: { value: '4.5', unit: 'g' }, m: '1000', traces: [] },
+        rulePackage: { status: 'APPLICABLE', mpeLimit: { value: '5', unit: 'g' }, mpeMultiplier: '1.0' },
+        compliance: { verdict: 'PASS' },
+        evaluatedAt: new Date().toISOString()
+      }
+    };
+    observationStore.saveItem(obs);
+    return obs;
+  };
+
   beforeAll(() => {
     // clean stores if needed
   });
@@ -34,7 +57,8 @@ describe('Phase 9 Workflow and RBAC Integration', () => {
   describe('Happy Path Workflow', () => {
     it('Should complete a full transition cycle successfully', () => {
       const tc = setupMockTest('TESTING', 'tech-1');
-      
+      setupEvaluatedObservation(tc.id);
+
       // Submit
       const submitted = WorkflowService.submitForReview(tc.id, 'tech-1', 'Technician');
       expect(submitted.status).toBe('READY_FOR_REVIEW');
@@ -59,6 +83,7 @@ describe('Phase 9 Workflow and RBAC Integration', () => {
 
     it('Should allow return for correction and resubmission', () => {
       const tc = setupMockTest('TESTING', 'tech-2');
+      setupEvaluatedObservation(tc.id);
       WorkflowService.submitForReview(tc.id, 'tech-2', 'Technician');
       WorkflowService.startReview(tc.id, 'rev-2', 'Reviewer');
       
@@ -143,6 +168,7 @@ describe('Phase 9 Workflow and RBAC Integration', () => {
 
     it('Should not allow a different reviewer to approve or return', () => {
       const tc = setupMockTest('TESTING', 'tech-1');
+      setupEvaluatedObservation(tc.id);
       WorkflowService.submitForReview(tc.id, 'tech-1', 'Technician');
       WorkflowService.startReview(tc.id, 'rev-1', 'Reviewer');
 

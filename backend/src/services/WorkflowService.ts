@@ -1,4 +1,4 @@
-import { testCaseStore } from '../repositories';
+import { testCaseStore, observationStore } from '../repositories';
 import { TestCase, TestCaseStatus } from '../types/domain';
 import { AuditService } from './AuditService';
 
@@ -19,8 +19,20 @@ export class WorkflowService {
        throw new Error('Only the assigned Technician can submit this test');
     }
 
-    // TODO: We could add gate logic here around test completeness
-    
+    // Evaluation completeness gate: at least one observation must have been recorded,
+    // and every recorded observation must carry a completed Calculation -> Rule ->
+    // Compliance evaluation before the test case can move to review.
+    const observations = observationStore.findAll().filter(o => o.testCaseId === testCaseId);
+    if (observations.length === 0) {
+      throw new Error('Cannot submit for review: no observations have been recorded for this test case');
+    }
+    const unevaluated = observations.filter(o => !o.evaluation);
+    if (unevaluated.length > 0) {
+      throw new Error(
+        `Cannot submit for review: ${unevaluated.length} observation(s) have not completed evaluation`
+      );
+    }
+
     const previousState = testCase.status;
     testCase.status = 'READY_FOR_REVIEW';
     testCase.updatedAt = new Date().toISOString();

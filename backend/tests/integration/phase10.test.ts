@@ -1,7 +1,8 @@
-import { Instrument, TestCase } from '../../src/types/domain';
-import { instrumentStore, testCaseStore } from '../../src/repositories';
+import { Instrument, TestCase, ObservationRecord } from '../../src/types/domain';
+import { instrumentStore, testCaseStore, observationStore } from '../../src/repositories';
 import { EvidenceService } from '../../src/services/EvidenceService';
 import { ReportService } from '../../src/services/ReportService';
+import { EvaluationService } from '../../src/services/EvaluationService';
 
 describe('Phase 10: Controlled Report Generation & Evidence Implementation', () => {
   let testCaseId: string;
@@ -46,6 +47,23 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
     };
     testCaseStore.saveItem(tc);
     testCaseId = tc.id;
+
+    // Phase 8 wiring: report compliance data is now sourced from real, persisted
+    // observation evaluations rather than the testConfiguration literal above.
+    // Provide one real, live-pipeline-evaluated WEIGHING observation (Ec = 0, well
+    // within the Class III / m=10 MPE of 5g) so the report has a real PASS to show.
+    const observation: ObservationRecord = {
+      id: 'OBS_PHASE10_1',
+      testCaseId,
+      testType: 'WEIGHING',
+      sequence: 1,
+      load: '100',
+      indication: '100',
+      additionalWeights: '5', // 0.5 * e, cancels the +0.5e term in P = I + 0.5e - deltaL
+      zeroError: '0'
+    };
+    observation.evaluation = EvaluationService.evaluateObservation(mockInstrument, observation, true);
+    observationStore.saveItem(observation);
   });
 
   describe('Evidence Management', () => {
@@ -85,11 +103,16 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
       expect(pdfHeader).toBe('%PDF-');
     });
 
-    it('should return JSON report data', () => {
+    it('should return JSON report data sourced from the real persisted evaluation', () => {
       const data = ReportService.generateReportData(testCaseId, 'Administrator');
       expect(data.testCaseId).toBe(testCaseId);
-      expect(data.complianceSummary.overallVerdict).toBe('APPROVED');
+      // Phase 8 wiring: overallVerdict is now the real Compliance Engine verdict
+      // aggregated from persisted observation evaluations, not a hardcoded literal.
+      expect(data.complianceSummary.overallVerdict).toBe('PASS');
+      expect(data.complianceSummary.weighing).toBe('PASS');
       expect(data.meta.cryptographicSeal).toBeDefined();
+      // Rule version is read from the persisted evaluation trace, not a literal -
+      // it happens to equal the same MVP string because that's what RuleEngine emits today.
       expect(data.meta.ruleEngineVersion).toBe('OIML-R76-1-2006-CORE-V1.0.0-MVP');
     });
 

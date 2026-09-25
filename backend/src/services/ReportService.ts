@@ -4,6 +4,29 @@ import { EvidenceService } from './EvidenceService';
 import { ReportDataset } from '../types/report';
 import { HtmlGenerator } from '../utils/HtmlGenerator';
 import { SimplePdfGenerator } from '../utils/SimplePdfGenerator';
+import { ApplicableTests, ObservationRecord, ObservationType } from '../types/domain';
+import { ComplianceVerdict } from '../compliance/types';
+
+// Worst-of ranking used to aggregate multiple observations of the same test type,
+// and to derive the overall verdict, into a single ComplianceVerdict.
+const VERDICT_SEVERITY: Record<ComplianceVerdict, number> = {
+  PASS: 0,
+  INCONCLUSIVE: 1,
+  BLOCKED: 2,
+  FAIL: 3
+};
+
+const TEST_TYPE_TO_CONFIG_KEY: Record<ObservationType, keyof ApplicableTests> = {
+  WEIGHING: 'weighing',
+  ECCENTRICITY: 'eccentricity',
+  REPEATABILITY: 'repeatability',
+  TARE: 'tare',
+  ZERO_SETTING: 'zeroSetting'
+};
+
+function worstVerdict(verdicts: ComplianceVerdict[]): ComplianceVerdict {
+  return verdicts.reduce((worst, v) => (VERDICT_SEVERITY[v] > VERDICT_SEVERITY[worst] ? v : worst), 'PASS' as ComplianceVerdict);
+}
 
 export class ReportService {
   public static generateReportData(testCaseId: string, generatedByRole: string): ReportDataset {
@@ -20,11 +43,36 @@ export class ReportService {
     const evidence = EvidenceService.getEvidenceForTestCase(testCaseId);
     const instrument = instrumentStore.findById(testCase.instrumentId);
 
-    // In our simplified mock projection, we project existing observation results or configuration states to compliance summary
-    // Since actual evaluations are computed in Phase 8 and stored/returned there, for the purpose of the report dataset
-    // We assume the overall verdict maps to the configuration/rules evaluated during workflow approval.
-    // Given NAWI architecture requires NO RE-EVALUATION in the reporting phase, we extract from stored compliance outcomes.
-    // (In full implementation, these would be saved in a compliance verdict store / directly on test case)
+    // Source of truth: the persisted Calculation -> Rule -> Compliance evaluation on each
+    // observation (see EvaluationService, invoked live at observation-submission time).
+    // No re-evaluation happens here - this only aggregates already-persisted verdicts.
+    const evaluated = allObservations.filter((o): o is ObservationRecord & { evaluation: NonNullable<ObservationRecord['evaluation']> } => !!o.evaluation);
+
+    const perTypeVerdict: Record<string, string> = {
+      weighing: testCase.testConfiguration.weighing,
+      eccentricity: testCase.testConfiguration.eccentricity,
+      repeatability: testCase.testConfiguration.repeatability,
+      tare: testCase.testConfiguration.tare,
+      zeroSetting: testCase.testConfiguration.zeroSetting
+    };
+
+    for (const [testType, configKey] of Object.entries(TEST_TYPE_TO_CONFIG_KEY)) {
+      const matching = evaluated.filter(o => o.testType === testType);
+      if (matching.length > 0) {
+        perTypeVerdict[configKey] = worstVerdict(matching.map(o => o.evaluation.compliance.verdict));
+      }
+    }
+
+    const overallVerdict = evaluated.length > 0
+      ? worstVerdict(evaluated.map(o => o.evaluation.compliance.verdict))
+      : 'BLOCKED';
+
+    // Rule version actually used during evaluation, read from the persisted trace rather
+    // than a literal - falls back to 'UNKNOWN' only if no observation carries traceability
+    // (e.g. all observations were BLOCKED before a rule package could be resolved).
+    const ruleEngineVersion = evaluated
+      .map(o => o.evaluation.rulePackage.traceability?.ruleVersion)
+      .find((v): v is string => !!v) || 'UNKNOWN';
 
     const baseDataset = {
       reportId: `REP_${testCaseId}_${Date.now()}`,
@@ -34,7 +82,7 @@ export class ReportService {
       meta: {
         generatedAt: new Date().toISOString(),
         generatedBy: generatedByRole,
-        ruleEngineVersion: 'OIML-R76-1-2006-CORE-V1.0.0-MVP',
+        ruleEngineVersion,
         cryptographicSeal: ''
       },
       testDetails: testCase,
@@ -42,14 +90,12 @@ export class ReportService {
       observations: allObservations,
       evidence: evidence,
       complianceSummary: {
-         // Projecting the status from test case tests Configuration. "NOT STARTED", "IN PROGRESS", "PASS", "FAIL".
-         // During approval, WorkflowService validates these.
-        weighing: testCase.testConfiguration.weighing,
-        eccentricity: testCase.testConfiguration.eccentricity,
-        repeatability: testCase.testConfiguration.repeatability,
-        tare: testCase.testConfiguration.tare,
-        zeroSetting: testCase.testConfiguration.zeroSetting,
-        overallVerdict: 'APPROVED'
+        weighing: perTypeVerdict.weighing,
+        eccentricity: perTypeVerdict.eccentricity,
+        repeatability: perTypeVerdict.repeatability,
+        tare: perTypeVerdict.tare,
+        zeroSetting: perTypeVerdict.zeroSetting,
+        overallVerdict
       }
     };
 

@@ -1,9 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { body } from 'express-validator';
-import { observationStore, testCaseStore } from '../repositories';
+import { observationStore, testCaseStore, instrumentStore } from '../repositories';
 import { requireRole } from '../middlewares/authResolver';
 import { validateRequest } from '../middlewares/validateRequest';
 import { ObservationRecord } from '../types/domain';
+import { EvaluationService } from '../services/EvaluationService';
+import { AuditService } from '../services/AuditService';
 
 export const observationRoutes = Router();
 
@@ -41,6 +43,11 @@ observationRoutes.post(
       return res.status(403).json({ success: false, error: 'Cannot modify observations unless test case is in TESTING status' });
     }
 
+    const instrument = instrumentStore.findById(testCase.instrumentId);
+    if (!instrument) {
+      return res.status(404).json({ success: false, error: 'Instrument not found for this test case' });
+    }
+
     const newObservation: ObservationRecord = {
       id: `obs_${Date.now()}_${Math.floor(Math.random()*1000)}`,
       testCaseId: data.testCaseId,
@@ -48,10 +55,46 @@ observationRoutes.post(
       sequence: data.sequence,
       load: data.load,
       indication: data.indication,
-      additionalWeights: data.additionalWeights
+      additionalWeights: data.additionalWeights,
+      unit: data.unit,
+      zeroError: data.zeroError
     };
 
+    // Live pipeline: Calculation -> Rule -> Compliance. Any failure here (e.g. missing
+    // instrument metrological parameters) rejects the observation rather than persisting
+    // an unevaluated row, since an unevaluated observation must not silently count as
+    // evaluated later.
+    try {
+      newObservation.evaluation = EvaluationService.evaluateObservation(
+        instrument,
+        {
+          testType: data.testType,
+          load: data.load,
+          indication: data.indication,
+          additionalWeights: data.additionalWeights,
+          unit: data.unit,
+          zeroError: data.zeroError
+        },
+        testCase.isInitialVerification !== false
+      );
+    } catch (err: any) {
+      return res.status(400).json({ success: false, error: `Evaluation failed: ${err.message}` });
+    }
+
     observationStore.saveItem(newObservation);
+
+    AuditService.recordEvent({
+      testCaseId: testCase.id,
+      actorId: user.id,
+      actorRole: user.role,
+      action: 'OBSERVATION_EVALUATED',
+      metadata: {
+        observationId: newObservation.id,
+        testType: newObservation.testType,
+        verdict: newObservation.evaluation.compliance.verdict
+      }
+    });
+
     res.status(201).json({ success: true, data: newObservation });
   }
 );
