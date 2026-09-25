@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { body } from 'express-validator';
 import { instrumentStore } from '../repositories';
 import { requireRole } from '../middlewares/authResolver';
+import { validateRequest } from '../middlewares/validateRequest';
 
 export const instrumentRoutes = Router();
 
@@ -20,6 +21,7 @@ instrumentRoutes.post(
   body('isManual').isBoolean(),
   body('isElectronic').isBoolean(),
   body('isSingleRange').isBoolean(),
+  validateRequest,
   (req: Request, res: Response) => {
     const data = req.body;
 

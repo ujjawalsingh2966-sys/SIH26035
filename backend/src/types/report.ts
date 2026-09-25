@@ -15,6 +15,7 @@ export interface ReportDataset {
   };
 
   testDetails: TestCase;
+  instrumentDetails?: any;
   observations: ObservationRecord[];
   evidence: EvidenceRecord[];
 

@@ -1,5 +1,5 @@
 import * as crypto from 'crypto';
-import { testCaseStore, observationStore } from '../repositories';
+import { testCaseStore, observationStore, instrumentStore } from '../repositories';
 import { EvidenceService } from './EvidenceService';
 import { ReportDataset } from '../types/report';
 import { HtmlGenerator } from '../utils/HtmlGenerator';
@@ -18,6 +18,7 @@ export class ReportService {
 
     const allObservations = observationStore.findAll().filter(o => o.testCaseId === testCaseId);
     const evidence = EvidenceService.getEvidenceForTestCase(testCaseId);
+    const instrument = instrumentStore.findById(testCase.instrumentId);
 
     // In our simplified mock projection, we project existing observation results or configuration states to compliance summary
     // Since actual evaluations are computed in Phase 8 and stored/returned there, for the purpose of the report dataset
@@ -37,6 +38,7 @@ export class ReportService {
         cryptographicSeal: ''
       },
       testDetails: testCase,
+      instrumentDetails: instrument,
       observations: allObservations,
       evidence: evidence,
       complianceSummary: {

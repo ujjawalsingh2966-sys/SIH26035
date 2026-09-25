@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import { manufacturerStore } from '../repositories';
 import { requireRole } from '../middlewares/authResolver';
+import { validateRequest } from '../middlewares/validateRequest';
 
 export const manufacturerRoutes = Router();
 
@@ -15,6 +16,7 @@ manufacturerRoutes.post(
   body('name').notEmpty().withMessage('Manufacturer name is required'),
   body('address').notEmpty().withMessage('Address is required'),
   body('identifier').notEmpty().withMessage('Identifier is required'),
+  validateRequest,
   (req, res) => {
     const { name, address, identifier } = req.body;
     const newManufacturer = {

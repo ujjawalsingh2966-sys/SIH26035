@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { body } from 'express-validator';
 import { requireRole } from '../middlewares/authResolver';
+import { validateRequest } from '../middlewares/validateRequest';
 import { EvidenceService } from '../services/EvidenceService';
 
 export const evidenceRoutes = Router();
@@ -14,6 +15,7 @@ evidenceRoutes.post(
   body('fileName').isString().notEmpty(),
   body('mimeType').isString().notEmpty(),
   body('sizeBytes').isNumeric(),
+  validateRequest,
   (req: Request, res: Response) => {
     try {
       const user = (req as any).user;

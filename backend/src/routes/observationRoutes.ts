@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { body } from 'express-validator';
 import { observationStore, testCaseStore } from '../repositories';
 import { requireRole } from '../middlewares/authResolver';
+import { validateRequest } from '../middlewares/validateRequest';
 import { ObservationRecord } from '../types/domain';
 
 export const observationRoutes = Router();
@@ -21,12 +22,19 @@ observationRoutes.post(
   body('load').isString().notEmpty(),
   body('indication').isString().notEmpty(),
   body('additionalWeights').isString().notEmpty(),
+  validateRequest,
   (req: Request, res: Response) => {
     const data = req.body;
+    const user = (req as any).user;
 
     const testCase = testCaseStore.findById(data.testCaseId);
     if (!testCase) {
       return res.status(404).json({ success: false, error: 'Test case not found' });
+    }
+
+    // Role-based IDOR prevention
+    if (user.role === 'Technician' && testCase.technicianId !== user.id) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Cannot manipulate observations for test cases assigned to others' });
     }
 
     if (testCase.status !== 'TESTING') {
