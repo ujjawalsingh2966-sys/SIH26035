@@ -13,6 +13,7 @@ import { testCaseRoutes } from './routes/testCaseRoutes';
 import { observationRoutes } from './routes/observationRoutes';
 import { evidenceRoutes } from './routes/evidenceRoutes';
 import { reportRoutes } from './routes/reportRoutes';
+import { repositoryRoutes } from './routes/repositoryRoutes';
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use('/api/v1/test-cases', authenticate, testCaseRoutes);
 app.use('/api/v1/observations', authenticate, observationRoutes);
 app.use('/api/v1/evidence', authenticate, evidenceRoutes);
 app.use('/api/v1/reports', authenticate, reportRoutes);
+app.use('/api/v1/repository', authenticate, repositoryRoutes);
 
 // 404 Handler
 app.use((req, res, next) => {

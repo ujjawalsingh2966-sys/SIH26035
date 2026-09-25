@@ -51,4 +51,9 @@ export class JsonStore<T extends { id: string }> {
     this.save();
     return item;
   }
+
+  clear(): void {
+    this.collection.clear();
+    this.save();
+  }
 }
