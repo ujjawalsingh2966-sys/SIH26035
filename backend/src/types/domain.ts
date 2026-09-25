@@ -50,7 +50,12 @@ export interface TestCase {
   id: string;
   instrumentId: string;
   technicianId: string;
-  status: 'DRAFT' | 'TESTING' | 'SUBMITTED_FOR_REVIEW';
+  status: TestCaseStatus;
+  
+  // Phase 9: Workflow and Audit extensions
+  reviewerId?: string;
+  reviewNotes?: string;
+  approvalDate?: string;
   createdAt: string;
   updatedAt: string;
 
@@ -70,4 +75,19 @@ export interface ObservationRecord {
   load: string;
   indication: string;
   additionalWeights: string;
+}
+
+
+export type TestCaseStatus = 'DRAFT' | 'TESTING' | 'READY_FOR_REVIEW' | 'UNDER_REVIEW' | 'RETURNED_FOR_CORRECTION' | 'APPROVED';
+
+export interface AuditRecord {
+  id: string;
+  testCaseId: string;
+  actorId: string;
+  actorRole: string;
+  action: string;
+  previousState?: string;
+  newState?: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
 }

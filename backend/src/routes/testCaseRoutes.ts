@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { body } from 'express-validator';
-import { instrumentStore, testCaseStore } from '../repositories';
+import { instrumentStore, testCaseStore, auditStore } from '../repositories';
 import { requireRole } from '../middlewares/authResolver';
 import { ApplicableTests, TestCase } from '../types/domain';
+import { WorkflowService } from '../services/WorkflowService';
+import { AuditService } from '../services/AuditService';
 
 export const testCaseRoutes = Router();
 
@@ -17,12 +19,11 @@ testCaseRoutes.post(
   (req: Request, res: Response) => {
     const { instrumentId } = req.body;
     const instrument = instrumentStore.findById(instrumentId);
+    if (!instrument) return res.status(404).json({ success: false, error: 'Instrument not found' });
+    
+    const userRole = (req as any).user?.role || 'Technician';
+    const userId = (req as any).user?.id || 'sys-tech';
 
-    if (!instrument) {
-      return res.status(404).json({ success: false, error: 'Instrument not found' });
-    }
-
-    // Phase 2 Applicability Matrix rules mapping
     const testConfiguration: ApplicableTests = {
       weighing: 'NOT STARTED',
       eccentricity: 'NOT STARTED',
@@ -34,7 +35,7 @@ testCaseRoutes.post(
     const newTestCase: TestCase = {
       id: `tc_${Date.now()}`,
       instrumentId: instrument.id,
-      technicianId: (req as any).user?.id || 'sys-tech', // Sourced from JWT
+      technicianId: userId,
       status: 'DRAFT',
       testConfiguration,
       createdAt: new Date().toISOString(),
@@ -42,6 +43,15 @@ testCaseRoutes.post(
     };
 
     testCaseStore.saveItem(newTestCase);
+    
+    AuditService.recordEvent({
+      testCaseId: newTestCase.id,
+      actorId: userId,
+      actorRole: userRole,
+      action: 'CREATE_TEST',
+      newState: 'DRAFT'
+    });
+
     res.status(201).json({ success: true, data: newTestCase });
   }
 );
@@ -56,6 +66,11 @@ testCaseRoutes.put(
     const testCase = testCaseStore.findById(req.params.id);
     if (!testCase) return res.status(404).json({ success: false, error: 'Test case not found' });
 
+    // Lock condition
+    if (testCase.status === 'APPROVED' || testCase.status === 'UNDER_REVIEW' || testCase.status === 'READY_FOR_REVIEW') {
+      return res.status(403).json({ success: false, error: 'Cannot modify a test case in this state' });
+    }
+
     testCase.laboratoryConditions = {
       temperature: req.body.temperature,
       humidity: req.body.humidity,
@@ -68,18 +83,77 @@ testCaseRoutes.put(
   }
 );
 
-testCaseRoutes.put(
-  '/:id/status',
-  requireRole(['Technician', 'Reviewer']),
-  body('status').isIn(['DRAFT', 'TESTING', 'SUBMITTED_FOR_REVIEW']),
-  (req: Request, res: Response) => {
-    const testCase = testCaseStore.findById(req.params.id);
-    if (!testCase) return res.status(404).json({ success: false, error: 'Test case not found' });
-
-    testCase.status = req.body.status;
-    testCase.updatedAt = new Date().toISOString();
-
-    testCaseStore.saveItem(testCase);
+// Workflow state changes
+testCaseRoutes.post('/:id/workflow/submit', requireRole(['Technician']), (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const testCase = WorkflowService.submitForReview(req.params.id, user.id, user.role);
     res.json({ success: true, data: testCase });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
   }
-);
+});
+
+testCaseRoutes.post('/:id/workflow/start-review', requireRole(['Reviewer', 'Administrator']), (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const testCase = WorkflowService.startReview(req.params.id, user.id, user.role);
+    res.json({ success: true, data: testCase });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+testCaseRoutes.post('/:id/workflow/return', requireRole(['Reviewer', 'Administrator']), body('reason').notEmpty(), (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const testCase = WorkflowService.returnForCorrection(req.params.id, user.id, user.role, req.body.reason);
+    res.json({ success: true, data: testCase });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+testCaseRoutes.post('/:id/workflow/approve', requireRole(['Reviewer', 'Administrator']), (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const testCase = WorkflowService.approve(req.params.id, user.id, user.role);
+    res.json({ success: true, data: testCase });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+testCaseRoutes.put('/:id/status', requireRole(['Technician']), body('status').isIn(['TESTING']), (req: Request, res: Response) => {
+  // Allow DRAFT -> TESTING manually, or RETURNED_FOR_CORRECTION -> TESTING
+  const testCase = testCaseStore.findById(req.params.id);
+  if (!testCase) return res.status(404).json({ success: false, error: 'Test case not found' });
+  
+  if (testCase.status !== 'DRAFT' && testCase.status !== 'RETURNED_FOR_CORRECTION') {
+    return res.status(400).json({ success: false, error: 'Invalid start testing condition' });
+  }
+
+  const previousState = testCase.status;
+  testCase.status = 'TESTING';
+  testCase.updatedAt = new Date().toISOString();
+  testCaseStore.saveItem(testCase);
+
+  const user = (req as any).user || {id: 'sys-tech', role: 'Technician'};
+
+  AuditService.recordEvent({
+    testCaseId: testCase.id,
+    actorId: user.id,
+    actorRole: user.role,
+    action: 'START_TESTING',
+    previousState,
+    newState: 'TESTING'
+  });
+
+  res.json({ success: true, data: testCase });
+});
+
+testCaseRoutes.get('/:id/audit', requireRole(['Technician', 'Reviewer', 'Administrator']), (req: Request, res: Response) => {
+  const history = AuditService.getHistoryForTest(req.params.id);
+  res.json({ success: true, data: history });
+});
+

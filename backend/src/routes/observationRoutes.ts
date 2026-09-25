@@ -29,8 +29,8 @@ observationRoutes.post(
       return res.status(404).json({ success: false, error: 'Test case not found' });
     }
 
-    if (testCase.status === 'SUBMITTED_FOR_REVIEW') {
-      return res.status(403).json({ success: false, error: 'Cannot modify observations for a submitted test case' });
+    if (testCase.status !== 'TESTING') {
+      return res.status(403).json({ success: false, error: 'Cannot modify observations unless test case is in TESTING status' });
     }
 
     const newObservation: ObservationRecord = {
