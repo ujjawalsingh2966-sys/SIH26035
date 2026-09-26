@@ -8,12 +8,15 @@ export default function DashboardPage() {
   const [testCases, setTestCases] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('http://localhost:4000/api/v1/instruments')
+    const token = localStorage.getItem('nawi_token');
+    const authHeaders = { 'Authorization': `Bearer ${token}` };
+
+    fetch('http://localhost:4000/api/v1/instruments', { headers: authHeaders })
       .then(res => res.json())
       .then(data => setInstruments(data.data || []))
       .catch(console.error);
 
-    fetch('http://localhost:4000/api/v1/test-cases')
+    fetch('http://localhost:4000/api/v1/test-cases', { headers: authHeaders })
       .then(res => res.json())
       .then(data => setTestCases(data.data || []))
       .catch(console.error);

@@ -18,6 +18,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
   });
 
   const [loading, setLoading] = useState(true);
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -88,20 +89,33 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
 
   const submitTest = async () => {
     if (!confirm('Are you sure you want to submit this test case for review? Observations will be locked.')) return;
+    setSubmitError('');
     const token = localStorage.getItem('nawi_token');
 
-    await fetch(`http://localhost:4000/api/v1/test-cases/${params.id}/status`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ status: 'SUBMITTED_FOR_REVIEW' })
-    });
-    router.push('/');
+    try {
+      const res = await fetch(`http://localhost:4000/api/v1/test-cases/${params.id}/workflow/submit`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const result = await res.json();
+
+      if (!res.ok || !result.success) {
+        setSubmitError(result.error || 'Failed to submit test case for review');
+        return;
+      }
+
+      // Refresh workspace state from the backend's authoritative response
+      // (includes the real new status, e.g. READY_FOR_REVIEW).
+      setTestCase(result.data);
+    } catch (e) {
+      setSubmitError('Network error while submitting for review');
+    }
   };
 
   if (loading) return <div className="p-8">Loading workspace...</div>;
   if (!testCase) return <div className="p-8">Test Case not found.</div>;
 
-  const isLocked = testCase.status === 'SUBMITTED_FOR_REVIEW';
+  const isLocked = ['READY_FOR_REVIEW', 'UNDER_REVIEW', 'APPROVED'].includes(testCase.status);
 
   return (
     <div className="p-8 max-w-6xl mx-auto flex flex-col md:flex-row gap-8">
@@ -138,9 +152,14 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
         </div>
 
         {!isLocked && (
-          <button onClick={submitTest} className="mt-8 bg-green-600 outline-none text-white px-6 py-3 w-full rounded font-mono font-bold hover:bg-green-700">
-            SUBMIT FOR REVIEW
-          </button>
+          <>
+            {submitError && (
+              <div className="text-red-700 bg-red-50 border border-red-200 rounded p-3 text-sm font-mono">{submitError}</div>
+            )}
+            <button onClick={submitTest} className="mt-8 bg-green-600 outline-none text-white px-6 py-3 w-full rounded font-mono font-bold hover:bg-green-700">
+              SUBMIT FOR REVIEW
+            </button>
+          </>
         )}
       </div>
 
