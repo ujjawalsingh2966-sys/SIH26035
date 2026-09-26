@@ -48,6 +48,32 @@ export class HtmlGenerator {
     <tr><th>Zero-Setting Test</th><td>${this.escapeHtml(report.complianceSummary.zeroSetting)}</td></tr>
   </table>
 
+  <h2>Metrological Evaluation</h2>
+  ${report.observationEvaluations.length === 0
+    ? `<p><em>No evaluated observations recorded for this test case.</em></p>`
+    : `<table>
+    <tr>
+      <th>Test</th><th>Applied Load</th><th>Indication</th><th>Add. Weights</th>
+      <th>P</th><th>E</th><th>Ec</th><th>Load Multiplier (m)</th><th>MPE</th>
+      <th>Verdict</th><th>Rule Version</th><th>Explainability</th>
+    </tr>
+    ${report.observationEvaluations.map(ev => `
+    <tr>
+      <td>${this.escapeHtml(ev.testType)} #${ev.sequence}</td>
+      <td>${this.escapeHtml(ev.appliedLoad.value)} ${this.escapeHtml(ev.appliedLoad.unit)}</td>
+      <td>${this.escapeHtml(ev.indication.value)} ${this.escapeHtml(ev.indication.unit)}</td>
+      <td>${this.escapeHtml(ev.additionalWeights.value)} ${this.escapeHtml(ev.additionalWeights.unit)}</td>
+      <td>${this.escapeHtml(ev.P.value)} ${this.escapeHtml(ev.P.unit)}</td>
+      <td>${this.escapeHtml(ev.E.value)} ${this.escapeHtml(ev.E.unit)}</td>
+      <td>${this.escapeHtml(ev.Ec.value)} ${this.escapeHtml(ev.Ec.unit)}</td>
+      <td>${this.escapeHtml(ev.m)}</td>
+      <td>${ev.mpe ? `${this.escapeHtml(ev.mpe.value)} ${this.escapeHtml(ev.mpe.unit)}` : 'N/A'}</td>
+      <td><strong>${this.escapeHtml(ev.verdict)}</strong></td>
+      <td>${this.escapeHtml(ev.ruleVersion)}</td>
+      <td>${this.escapeHtml(ev.explainability)}</td>
+    </tr>`).join('')}
+  </table>`}
+
   <h2>Cryptographic Seal and Metadata</h2>
   <div class="seal">
     <p><strong>Generated At:</strong> ${this.escapeHtml(report.meta.generatedAt)}</p>

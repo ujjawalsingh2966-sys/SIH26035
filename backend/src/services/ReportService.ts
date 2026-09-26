@@ -6,6 +6,7 @@ import { HtmlGenerator } from '../utils/HtmlGenerator';
 import { SimplePdfGenerator } from '../utils/SimplePdfGenerator';
 import { ApplicableTests, ObservationRecord, ObservationType } from '../types/domain';
 import { ComplianceVerdict } from '../compliance/types';
+import { ObservationEvaluationView } from '../types/report';
 
 // Worst-of ranking used to aggregate multiple observations of the same test type,
 // and to derive the overall verdict, into a single ComplianceVerdict.
@@ -74,6 +75,27 @@ export class ReportService {
       .map(o => o.evaluation.rulePackage.traceability?.ruleVersion)
       .find((v): v is string => !!v) || 'UNKNOWN';
 
+    // Presentation view of each observation's already-persisted evaluation - a direct
+    // read of stored data (calculation.P/E/Ec/m, rulePackage.mpeLimit, compliance.verdict
+    // and trace), not a recomputation. See ObservationEvaluationView.
+    const observationEvaluations: ObservationEvaluationView[] = evaluated.map(o => ({
+      observationId: o.id,
+      testType: o.testType,
+      sequence: o.sequence,
+      appliedLoad: { value: o.load, unit: o.unit || 'g' },
+      indication: { value: o.indication, unit: o.unit || 'g' },
+      additionalWeights: { value: o.additionalWeights, unit: o.unit || 'g' },
+      P: o.evaluation.calculation.P,
+      E: o.evaluation.calculation.E,
+      Ec: o.evaluation.calculation.Ec,
+      m: o.evaluation.calculation.m,
+      mpe: o.evaluation.rulePackage.mpeLimit,
+      verdict: o.evaluation.compliance.verdict,
+      ruleVersion: o.evaluation.rulePackage.traceability?.ruleVersion || 'UNKNOWN',
+      explainability: o.evaluation.compliance.trace?.resolutionComparison || 'No comparison available (evaluation did not reach a resolvable APPLICABLE rule state)',
+      evaluatedAt: o.evaluation.evaluatedAt
+    }));
+
     const baseDataset = {
       reportId: `REP_${testCaseId}_${Date.now()}`,
       testCaseId,
@@ -89,6 +111,7 @@ export class ReportService {
       instrumentDetails: instrument,
       observations: allObservations,
       evidence: evidence,
+      observationEvaluations,
       complianceSummary: {
         weighing: perTypeVerdict.weighing,
         eccentricity: perTypeVerdict.eccentricity,
@@ -99,7 +122,9 @@ export class ReportService {
       }
     };
 
-    // Construct seal string over data properties
+    // Construct seal string over data properties. allObservations already carries each
+    // observation's persisted `.evaluation` (calculation/rule/compliance), so the seal
+    // covers the real evaluation evidence, not just the raw inputs.
     const sealString = JSON.stringify({
       testCase,
       observations: allObservations,
@@ -138,6 +163,18 @@ export class ReportService {
       `Tare: ${data.complianceSummary.tare}`,
       `Zero Setting: ${data.complianceSummary.zeroSetting}`,
       ``,
+      `-- Metrological Evaluation --`,
+      ...(data.observationEvaluations.length === 0
+        ? [`(No evaluated observations recorded)`]
+        : data.observationEvaluations.flatMap(ev => [
+            `[${ev.testType} #${ev.sequence}]`,
+            `  Load: ${ev.appliedLoad.value} ${ev.appliedLoad.unit}  Indication: ${ev.indication.value} ${ev.indication.unit}  Add. Weights: ${ev.additionalWeights.value} ${ev.additionalWeights.unit}`,
+            `  P: ${ev.P.value} ${ev.P.unit}  E: ${ev.E.value} ${ev.E.unit}  Ec: ${ev.Ec.value} ${ev.Ec.unit}  m: ${ev.m}`,
+            `  MPE: ${ev.mpe ? `${ev.mpe.value} ${ev.mpe.unit}` : 'N/A'}  Verdict: ${ev.verdict}  Rule Version: ${ev.ruleVersion}`,
+            `  ${ev.explainability}`,
+            `  Evaluated At: ${ev.evaluatedAt}`,
+            ``
+          ])),
       `-- Security --`,
       `Rule Version: ${data.meta.ruleEngineVersion}`,
       `Seal: ${data.meta.cryptographicSeal}`,
