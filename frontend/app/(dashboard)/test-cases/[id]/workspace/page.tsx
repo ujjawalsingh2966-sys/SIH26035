@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+
 export default function TestCaseWorkspace({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [testCase, setTestCase] = useState<any>(null);
@@ -28,7 +30,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
     try {
       const token = localStorage.getItem('nawi_token');
       // Fetch test case
-      const tcRes = await fetch(`http://localhost:4000/api/v1/test-cases`, {
+      const tcRes = await fetch(`${API_BASE_URL}/api/v1/test-cases`, {
          headers: { 'Authorization': `Bearer ${token}` }
       });
       const tcData = await tcRes.json();
@@ -40,7 +42,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
       }
 
       // Fetch observations
-      const obsRes = await fetch(`http://localhost:4000/api/v1/observations/${params.id}`, {
+      const obsRes = await fetch(`${API_BASE_URL}/api/v1/observations/${params.id}`, {
          headers: { 'Authorization': `Bearer ${token}` }
       });
       const obsData = await obsRes.json();
@@ -54,7 +56,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
 
   const saveLabConditions = async () => {
     const token = localStorage.getItem('nawi_token');
-    await fetch(`http://localhost:4000/api/v1/test-cases/${params.id}/laboratory-conditions`, {
+    await fetch(`${API_BASE_URL}/api/v1/test-cases/${params.id}/laboratory-conditions`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify(lab)
@@ -68,7 +70,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
     const seq = typeObs.length + 1;
     const token = localStorage.getItem('nawi_token');
 
-    const res = await fetch(`http://localhost:4000/api/v1/observations`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/observations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({
@@ -93,7 +95,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
     const token = localStorage.getItem('nawi_token');
 
     try {
-      const res = await fetch(`http://localhost:4000/api/v1/test-cases/${params.id}/workflow/submit`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/test-cases/${params.id}/workflow/submit`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });

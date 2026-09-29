@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+
 export default function NewInstrumentPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -37,7 +39,7 @@ export default function NewInstrumentPage() {
 
     try {
       const token = localStorage.getItem('nawi_token');
-      const res = await fetch('http://localhost:4000/api/v1/instruments', {
+      const res = await fetch(`${API_BASE_URL}/api/v1/instruments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -49,7 +51,7 @@ export default function NewInstrumentPage() {
       const result = await res.json();
       if (result.success) {
         // Automatically create a draft test case to attach observations
-        const tcRes = await fetch('http://localhost:4000/api/v1/test-cases', {
+        const tcRes = await fetch(`${API_BASE_URL}/api/v1/test-cases`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

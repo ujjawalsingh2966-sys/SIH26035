@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PlusCircle, Search } from 'lucide-react';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+
 export default function DashboardPage() {
   const [instruments, setInstruments] = useState<any[]>([]);
   const [testCases, setTestCases] = useState<any[]>([]);
@@ -11,12 +13,12 @@ export default function DashboardPage() {
     const token = localStorage.getItem('nawi_token');
     const authHeaders = { 'Authorization': `Bearer ${token}` };
 
-    fetch('http://localhost:4000/api/v1/instruments', { headers: authHeaders })
+    fetch(`${API_BASE_URL}/api/v1/instruments`, { headers: authHeaders })
       .then(res => res.json())
       .then(data => setInstruments(data.data || []))
       .catch(console.error);
 
-    fetch('http://localhost:4000/api/v1/test-cases', { headers: authHeaders })
+    fetch(`${API_BASE_URL}/api/v1/test-cases`, { headers: authHeaders })
       .then(res => res.json())
       .then(data => setTestCases(data.data || []))
       .catch(console.error);
