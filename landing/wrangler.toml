@@ -1,8 +1,0 @@
-name = "w8lab-landing"
-compatibility_date = "2024-09-23"
-pages_build_output_dir = "dist"
-
-# If you want to deploy this as a standard Worker instead of Pages, uncomment the lines below:
-# main = "./dist/worker.js" 
-# [site]
-# bucket = "./dist"
