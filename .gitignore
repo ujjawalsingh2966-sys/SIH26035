@@ -20,3 +20,9 @@ data/*.json
 # Playwright
 .playwright-cli/
 
+
+# Local configuration and generated files
+.env.local
+.env.*.local
+*.tsbuildinfo
+data/*.tmp

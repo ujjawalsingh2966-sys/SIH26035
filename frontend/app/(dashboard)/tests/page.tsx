@@ -1,15 +1,66 @@
+"use client";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { api, User } from "../../lib/api";
 export default function TestsPage() {
+  const [tests, setTests] = useState<any[]>([]);
+  const [user, setUser] = useState<User>();
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    Promise.all([api<any[]>("/test-cases"), api<User>("/auth/me")])
+      .then(([rows, u]) => {
+        setTests(rows);
+        setUser(u);
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-2xl font-bold">Evaluation Matrices</h3>
-        <button className="px-4 py-2 bg-slate-900 text-white font-medium rounded text-sm opacity-50 cursor-not-allowed">
-          Start Intake Flow
-        </button>
+    <section className="space-y-6">
+      <div className="flex justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Laboratory test queue</h1>
+          <p className="text-slate-500 mt-2">
+            Existing laboratory records. New business verification requests
+            appear in Applications.
+          </p>
+        </div>
+        {user?.role === "Technician" && (
+          <Link href="/instruments/new" className="text-teal-700 underline">
+            Intake an instrument
+          </Link>
+        )}
       </div>
-      <div className="bg-white p-12 border rounded shadow-sm text-center text-slate-500">
-        [PLACEHOLDER] Target integration limit. No testing observation grids or MPE calculation routines are instantiated in Phase 4.
-      </div>
-    </div>
+      {error && (
+        <p role="alert" className="text-red-800">
+          {error}
+        </p>
+      )}
+      {loading ? (
+        <p role="status">Loading test cases…</p>
+      ) : tests.length ? (
+        <ul className="bg-white border rounded-xl divide-y">
+          {tests.map((t) => (
+            <li key={t.id} className="p-5 flex flex-wrap justify-between gap-4">
+              <div>
+                <p className="font-semibold">{t.id}</p>
+                <p className="text-sm text-slate-500">{t.status}</p>
+              </div>
+              <Link
+                className="text-teal-700"
+                href={`/test-cases/${t.id}/workspace`}
+              >
+                Open workspace →
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="bg-white border rounded-xl p-8">
+          No laboratory test cases to show.
+        </p>
+      )}
+    </section>
   );
 }
