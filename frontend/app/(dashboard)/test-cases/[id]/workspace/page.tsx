@@ -132,7 +132,6 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
       const obsData = await obsRes.json()
       setObservations(obsData.data || [])
     } catch (e: any) {
-      console.error('Failed to fetch data:', e)
       setSubmitError(e?.message || 'Failed to load test case data')
     } finally {
       setLoading(false)
@@ -211,7 +210,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
       const result = await res.json()
 
       if (res.ok && result.success) {
-        setObservations([...observations, result.data])
+        setObservations(prev => [...prev, result.data])
         setObsForm({ load: '', indication: '', additionalWeights: '0' })
         setSuccessMessage('Observation recorded successfully')
         setShowSuccessToast(true)
@@ -230,6 +229,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
 
   const deleteObservation = async (obsId: string) => {
     if (deletingObsId) return
+    if (!window.confirm('Are you sure you want to delete this observation? This action will be audited.')) return
     setDeletingObsId(obsId)
     setSubmitError('')
     try {
@@ -241,7 +241,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
       const result = await res.json()
 
       if (res.ok && result.success) {
-        setObservations(observations.filter(o => o.id !== obsId))
+        setObservations(prev => prev.filter(o => o.id !== obsId))
         setSuccessMessage('Observation deleted successfully')
         setShowSuccessToast(true)
         setTimeout(() => setShowSuccessToast(false), 3000)

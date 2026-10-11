@@ -20,17 +20,25 @@ testCaseRoutes.get('/', (req, res) => {
   res.json({ success: true, data: allTests });
 });
 
-testCaseRoutes.get('/:id', (req: Request, res: Response) => {
-  const testCase = testCaseStore.findById(req.params.id);
-  if (!testCase) {
-    return res.status(404).json({ success: false, error: 'Test case not found' });
+testCaseRoutes.get(
+  '/:id',
+  requireRole(['Technician', 'Reviewer', 'Administrator']),
+  (req: Request, res: Response) => {
+    try {
+      const testCase = testCaseStore.findById(req.params.id);
+      if (!testCase) {
+        return res.status(404).json({ success: false, error: 'Test case not found' });
+      }
+      const user = (req as any).user;
+      if (user && user.role === 'Technician' && testCase.technicianId !== user.id) {
+        return res.status(403).json({ success: false, error: 'Forbidden' });
+      }
+      res.json({ success: true, data: testCase });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: `Failed to retrieve test case: ${err.message}` });
+    }
   }
-  const user = (req as any).user;
-  if (user && user.role === 'Technician' && testCase.technicianId !== user.id) {
-    return res.status(403).json({ success: false, error: 'Forbidden' });
-  }
-  res.json({ success: true, data: testCase });
-});
+);
 
 testCaseRoutes.post(
   '/',
