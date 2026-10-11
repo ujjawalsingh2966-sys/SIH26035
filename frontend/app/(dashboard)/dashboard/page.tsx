@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useAccount } from '../../lib/account-context'
 import {
   PlusCircle,
   Search,
@@ -52,6 +53,7 @@ interface TestCase {
 }
 
 export default function DashboardPage() {
+  const user = useAccount()
   const [instruments, setInstruments] = useState<Instrument[]>([])
   const [testCases, setTestCases] = useState<TestCase[]>([])
   const [loading, setLoading] = useState(true)
@@ -170,13 +172,13 @@ export default function DashboardPage() {
               className="pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all w-full md:w-64"
             />
           </div>
-          <Link
+          {user?.role === 'Technician' && <Link
             href="/instruments/new"
             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm transition-all shadow-lg shadow-indigo-600/20 hover:shadow-xl hover:shadow-indigo-600/30"
           >
             <PlusCircle className="w-4 h-4" />
             New Instrument
-          </Link>
+          </Link>}
         </div>
       </div>
 
@@ -200,6 +202,10 @@ export default function DashboardPage() {
         </div>
       )}
 
+      <div className="card p-4 text-sm">
+        Business verification requests, officer scheduling and QR certificates are in{' '}
+        <Link href="/applications" className="text-indigo-700 underline">Applications</Link>.
+      </div>
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="card card-hover group">
@@ -372,13 +378,13 @@ export default function DashboardPage() {
                   <Scale className="w-6 h-6 text-slate-400" />
                 </div>
                 <p className="text-slate-500 dark:text-slate-400 text-sm">No instruments registered yet</p>
-                <Link
+                {user?.role === 'Technician' && <Link
                   href="/instruments/new"
                   className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
                 >
                   <PlusCircle className="w-4 h-4" />
                   Register Instrument
-                </Link>
+                </Link>}
               </div>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-slate-700">

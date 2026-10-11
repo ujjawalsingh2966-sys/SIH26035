@@ -1,7 +1,8 @@
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
 
-const DATA_DIR = path.resolve(__dirname, '../../../data');
+const DATA_DIR =
+  process.env.DATA_DIR || path.resolve(__dirname, "../../../data");
 
 export class JsonStore<T extends { id: string }> {
   private collection: Map<string, T> = new Map();
@@ -18,13 +19,13 @@ export class JsonStore<T extends { id: string }> {
   private load() {
     if (fs.existsSync(this.filePath)) {
       try {
-        const raw = fs.readFileSync(this.filePath, 'utf-8');
+        const raw = fs.readFileSync(this.filePath, "utf-8");
         const data = JSON.parse(raw);
         for (const item of data) {
           this.collection.set(item.id, item);
         }
       } catch (err) {
-        console.error(`Failed to load ${this.filePath}`, err);
+        throw new Error(`Cannot read data store ${this.filePath}`);
       }
     }
   }
@@ -32,32 +33,49 @@ export class JsonStore<T extends { id: string }> {
   private save() {
     try {
       const data = Array.from(this.collection.values());
-      fs.writeFileSync(this.filePath, JSON.stringify(data, null, 2), 'utf-8');
+      const temporaryPath = `${this.filePath}.tmp`;
+      fs.writeFileSync(temporaryPath, JSON.stringify(data, null, 2), {
+        encoding: "utf-8",
+        mode: 0o600,
+      });
+      fs.renameSync(temporaryPath, this.filePath);
     } catch (err) {
-      console.error(`Failed to save ${this.filePath}`, err);
+      throw new Error(`Cannot persist data store ${this.filePath}`);
     }
   }
 
   findAll(): T[] {
-    return Array.from(this.collection.values());
+    return structuredClone(Array.from(this.collection.values()));
   }
 
   findById(id: string): T | undefined {
-    return this.collection.get(id);
+    return structuredClone(this.collection.get(id));
   }
 
   saveItem(item: T): T {
-    this.collection.set(item.id, item);
-    this.save();
+    const previous = this.collection.get(item.id);
+    this.collection.set(item.id, structuredClone(item));
+    try {
+      this.save();
+    } catch (err) {
+      if (previous) this.collection.set(item.id, previous);
+      else this.collection.delete(item.id);
+      throw err;
+    }
     return item;
   }
 
   deleteItem(id: string): boolean {
-    const existed = this.collection.delete(id);
-    if (existed) {
+    const previous = this.collection.get(id);
+    if (!previous) return false;
+    this.collection.delete(id);
+    try {
       this.save();
+    } catch (err) {
+      this.collection.set(id, previous);
+      throw err;
     }
-    return existed;
+    return true;
   }
 
   clear(): void {
