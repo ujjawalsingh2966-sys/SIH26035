@@ -655,7 +655,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
 
           {isLocked && testCase.status === 'UNDER_REVIEW' && (
             <div className="card p-5">
-              <h3 className="font-semibold text-indigo-700 dark:text-indigo-400 mb-3 flex items-center gap-2">
+              <h3 className="font-semibold text-blue-700 dark:text-blue-400 mb-3 flex items-center gap-2">
                 <Lock className="w-5 h-5" />
                 Under Review
               </h3>
