@@ -1,264 +1,653 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+'use client'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import {
+  Save,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  Calendar,
+  Thermometer,
+  Droplet,
+  BarChart3,
+  ChevronRight,
+  Plus,
+  Trash2,
+  FileText,
+  Activity,
+  Lock,
+ Unlock,
+  Download,
+  Upload,
+  Settings
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000'
+
+export type TestCaseStatus = 'DRAFT' | 'NOT STARTED' | 'IN_PROGRESS' | 'SUBMITTED_FOR_REVIEW' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'COMPLETE' | 'NOT APPLICABLE'
+
+export type ObservationType = 'WEIGHING' | 'ECCENTRICITY' | 'REPEATABILITY' | 'TARE' | 'ZERO_SETTING'
+
+interface TestCase {
+  id: string
+  instrumentId: string
+  technicianId: string
+  status: TestCaseStatus
+  reviewerId?: string
+  reviewNotes?: string
+  approvalDate?: string
+  createdAt: string
+  updatedAt: string
+  laboratoryConditions?: {
+    temperature: string
+    humidity: string
+    pressure: string
+  }
+  testConfiguration: {
+    weighing: string
+    eccentricity: string
+    repeatability: string
+    tare: string
+    zeroSetting: string
+  }
+  isInitialVerification?: boolean
+}
+
+interface Observation {
+  id: string
+  testCaseId: string
+  testType: ObservationType
+  sequence: number
+  load: string
+  indication: string
+  additionalWeights: string
+}
 
 export default function TestCaseWorkspace({ params }: { params: { id: string } }) {
-  const router = useRouter();
-  const [testCase, setTestCase] = useState<any>(null);
-  const [observations, setObservations] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState('WEIGHING');
+  const router = useRouter()
+  const [testCase, setTestCase] = useState<TestCase | null>(null)
+  const [observations, setObservations] = useState<Observation[]>([])
+  const [activeTab, setActiveTab] = useState<ObservationType>('WEIGHING')
+  const [loading, setLoading] = useState(true)
+  const [submitError, setSubmitError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+  const [showSuccessToast, setShowSuccessToast] = useState(false)
 
-  const [lab, setLab] = useState({ temperature: '', humidity: '', pressure: '' });
+  // Lab conditions form
+  const [lab, setLab] = useState({ temperature: '', humidity: '', pressure: '' })
 
   // Observation form
   const [obsForm, setObsForm] = useState({
     load: '',
     indication: '',
     additionalWeights: '0'
-  });
-
-  const [loading, setLoading] = useState(true);
-  const [submitError, setSubmitError] = useState('');
+  })
 
   useEffect(() => {
-    fetchData();
-  }, [params.id]);
+    fetchData()
+  }, [params.id])
 
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem('nawi_token');
+      const token = localStorage.getItem('nawi_token')
+
       // Fetch test case
       const tcRes = await fetch(`${API_BASE_URL}/api/v1/test-cases`, {
-         headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const tcData = await tcRes.json();
-      const currentTc = tcData.data?.find((t: any) => t.id === params.id);
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const tcData = await tcRes.json()
+      const currentTc = tcData.data?.find((t: TestCase) => t.id === params.id)
 
-      setTestCase(currentTc);
+      setTestCase(currentTc)
       if (currentTc?.laboratoryConditions) {
-        setLab(currentTc.laboratoryConditions);
+        setLab(currentTc.laboratoryConditions)
       }
 
       // Fetch observations
       const obsRes = await fetch(`${API_BASE_URL}/api/v1/observations/${params.id}`, {
-         headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const obsData = await obsRes.json();
-      setObservations(obsData.data || []);
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const obsData = await obsRes.json()
+      setObservations(obsData.data || [])
     } catch (e) {
-      console.error(e);
+      console.error('Failed to fetch data:', e)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const saveLabConditions = async () => {
-    const token = localStorage.getItem('nawi_token');
-    await fetch(`${API_BASE_URL}/api/v1/test-cases/${params.id}/laboratory-conditions`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify(lab)
-    });
-    alert('Conditions saved');
-  };
+    const token = localStorage.getItem('nawi_token')
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/test-cases/${params.id}/laboratory-conditions`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(lab)
+      })
+      const result = await res.json()
+
+      if (result.success) {
+        setSuccessMessage('Laboratory conditions saved successfully')
+        setShowSuccessToast(true)
+        setTimeout(() => setShowSuccessToast(false), 3000)
+        // Refresh data
+        const tcRes = await fetch(`${API_BASE_URL}/api/v1/test-cases/${params.id}/workspace`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        const tcData = await tcRes.json()
+        if (tcData.data?.laboratoryConditions) {
+          setLab(tcData.data.laboratoryConditions)
+        }
+      }
+    } catch (e) {
+      setSubmitError('Failed to save laboratory conditions')
+      setTimeout(() => setSubmitError(''), 3000)
+    }
+  }
 
   const addObservation = async () => {
-    // Determine max sequence
-    const typeObs = observations.filter(o => o.testType === activeTab);
-    const seq = typeObs.length + 1;
-    const token = localStorage.getItem('nawi_token');
-
-    const res = await fetch(`${API_BASE_URL}/api/v1/observations`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({
-        testCaseId: params.id,
-        testType: activeTab,
-        sequence: seq,
-        load: obsForm.load,
-        indication: obsForm.indication,
-        additionalWeights: obsForm.additionalWeights
-      })
-    });
-    const result = await res.json();
-    if (result.success) {
-      setObservations([...observations, result.data]);
-      setObsForm({ load: '', indication: '', additionalWeights: '0' }); // Reset form
+    if (!obsForm.load || !obsForm.indication) {
+      setSubmitError('Load and indication are required fields')
+      setTimeout(() => setSubmitError(''), 3000)
+      return
     }
-  };
-
-  const submitTest = async () => {
-    if (!confirm('Are you sure you want to submit this test case for review? Observations will be locked.')) return;
-    setSubmitError('');
-    const token = localStorage.getItem('nawi_token');
 
     try {
+      const typeObs = observations.filter(o => o.testType === activeTab)
+      const seq = typeObs.length + 1
+      const token = localStorage.getItem('nawi_token')
+
+      const res = await fetch(`${API_BASE_URL}/api/v1/observations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          testCaseId: params.id,
+          testType: activeTab,
+          sequence: seq,
+          load: obsForm.load,
+          indication: obsForm.indication,
+          additionalWeights: obsForm.additionalWeights
+        })
+      })
+      const result = await res.json()
+
+      if (result.success) {
+        setObservations([...observations, result.data])
+        setObsForm({ load: '', indication: '', additionalWeights: '0' })
+        setSuccessMessage('Observation recorded successfully')
+        setShowSuccessToast(true)
+        setTimeout(() => setShowSuccessToast(false), 3000)
+      }
+    } catch (e) {
+      setSubmitError('Failed to record observation')
+      setTimeout(() => setSubmitError(''), 3000)
+    }
+  }
+
+  const deleteObservation = async (obsId: string) => {
+    try {
+      const token = localStorage.getItem('nawi_token')
+      const res = await fetch(`${API_BASE_URL}/api/v1/observations/${obsId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+
+      if (res.ok) {
+        setObservations(observations.filter(o => o.id !== obsId))
+        setSuccessMessage('Observation deleted')
+        setShowSuccessToast(true)
+        setTimeout(() => setShowSuccessToast(false), 3000)
+      }
+    } catch (e) {
+      setSubmitError('Failed to delete observation')
+      setTimeout(() => setSubmitError(''), 3000)
+    }
+  }
+
+  const submitTest = async () => {
+    if (!confirm('Submit this test case for review? Observations will be locked.')) return
+
+    try {
+      const token = localStorage.getItem('nawi_token')
       const res = await fetch(`${API_BASE_URL}/api/v1/test-cases/${params.id}/workflow/submit`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const result = await res.json();
+      })
+      const result = await res.json()
 
-      if (!res.ok || !result.success) {
-        setSubmitError(result.error || 'Failed to submit test case for review');
-        return;
+      if (result.success) {
+        setTestCase(result.data)
+        setSuccessMessage('Test case submitted for review successfully')
+        setShowSuccessToast(true)
+        setTimeout(() => {
+          setShowSuccessToast(false)
+          router.push('/tests')
+        }, 2000)
+      } else {
+        setSubmitError(result.error || 'Failed to submit test case for review')
+        setTimeout(() => setSubmitError(''), 5000)
       }
-
-      // Refresh workspace state from the backend's authoritative response
-      // (includes the real new status, e.g. READY_FOR_REVIEW).
-      setTestCase(result.data);
     } catch (e) {
-      setSubmitError('Network error while submitting for review');
+      setSubmitError('Network error while submitting for review')
+      setTimeout(() => setSubmitError(''), 3000)
     }
-  };
+  }
 
-  if (loading) return <div className="p-8">Loading workspace...</div>;
-  if (!testCase) return <div className="p-8">Test Case not found.</div>;
+  const isLocked = testCase && ['SUBMITTED_FOR_REVIEW', 'UNDER_REVIEW', 'APPROVED'].includes(testCase.status)
 
-  const isLocked = ['READY_FOR_REVIEW', 'UNDER_REVIEW', 'APPROVED'].includes(testCase.status);
+  // Calculate MPE (Maximum Permissible Error) placeholder
+  // In Phase 6, this will use actual metrological calculations
+  const getMPEStatus = (load: string, indication: string) => {
+    // Simplified - will be replaced with actual calculations in Phase 6
+    const diff = Math.abs(parseFloat(load) - parseFloat(indication))
+    return diff < 0.01 ? 'PASS' : 'WARN'
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <Activity className="w-12 h-12 text-indigo-600 animate-spin" />
+          <p className="text-slate-500 dark:text-slate-400 font-medium">Loading workspace...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!testCase) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-rose-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Test Case Not Found</h3>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">The requested test case could not be found.</p>
+          <button
+            onClick={() => router.push('/tests')}
+            className="mt-6 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+          >
+            Back to Evaluation Queue
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Get applicable tests
+  const applicableTests = Object.entries(testCase.testConfiguration)
+    .filter(([_, status]) => status !== 'NOT APPLICABLE')
+    .map(([key]) => key.toUpperCase().replace('_SETTING', ' SETTING') as ObservationType)
+
+  // Group observations by type
+  const observationsByType = applicableTests.reduce((acc, type) => {
+    acc[type] = observations.filter(o => o.testType === type)
+    return acc
+  }, {} as Record<ObservationType, Observation[]>)
+
+  // Calculate statistics
+  const stats = {
+    total: observations.length,
+    byType: applicableTests.reduce((acc, type) => {
+      acc[type] = observations.filter(o => o.testType === type).length
+      return acc
+    }, {} as Record<ObservationType, number>),
+    lastUpdated: testCase.updatedAt
+  }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto flex flex-col md:flex-row gap-8">
-      {/* Left Column: Metadata & Environmental */}
-      <div className="w-full md:w-1/3 space-y-6">
-        <div className="bg-blue-50 border border-blue-200 p-4 rounded">
-          <h2 className="font-bold font-mono text-blue-900 border-b border-blue-200 pb-2 mb-2">METADATA</h2>
-          <div className="text-sm font-mono space-y-1">
-            <p><strong>Test Case:</strong> {testCase.id}</p>
-            <p><strong>Status:</strong> {testCase.status}</p>
-            <p><strong>Instrument ID:</strong> {testCase.instrumentId}</p>
+    <div className="space-y-6 animate-fade-in-up">
+      {/* Success Toast */}
+      {showSuccessToast && (
+        <div className="fixed top-4 right-4 z-50 animate-fade-in-up">
+          <div className="bg-emerald-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5" />
+            <span className="font-medium">{successMessage}</span>
           </div>
         </div>
+      )}
 
-        <div className="bg-gray-50 border p-4 rounded">
-          <h2 className="font-bold font-mono pb-2 mb-2">LAB CONDITIONS</h2>
-          <div className="space-y-3 font-mono text-sm">
-            <div>
-              <label className="block mb-1">Temperature (°C)</label>
-              <input disabled={isLocked} value={lab.temperature} onChange={e => setLab({...lab, temperature: e.target.value})} className="border p-2 w-full rounded" />
-            </div>
-            <div>
-              <label className="block mb-1">Humidity (%)</label>
-              <input disabled={isLocked} value={lab.humidity} onChange={e => setLab({...lab, humidity: e.target.value})} className="border p-2 w-full rounded" />
-            </div>
-            <div>
-              <label className="block mb-1">Pressure (hPa)</label>
-              <input disabled={isLocked} value={lab.pressure} onChange={e => setLab({...lab, pressure: e.target.value})} className="border p-2 w-full rounded" />
-            </div>
-            {!isLocked && (
-              <button onClick={saveLabConditions} className="bg-blue-600 text-white px-4 py-2 w-full rounded font-bold hover:bg-blue-700">SAVE CONDITIONS</button>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-1">
+            <span className="font-mono">TEST CASE:</span>
+            <span className="font-mono text-slate-900 dark:text-white">{testCase.id.slice(0, 8)}...</span>
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Observation Workspace</h1>
+          <div className="flex flex-wrap items-center gap-3 mt-2 text-sm">
+            <span className={cn(
+              'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-medium',
+              testCase.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' :
+              testCase.status === 'SUBMITTED_FOR_REVIEW' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+              testCase.status === 'UNDER_REVIEW' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' :
+              testCase.status === 'IN_PROGRESS' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' :
+              'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+            )}>
+              {testCase.status.replace('_', ' ')}
+            </span>
+            {testCase.isInitialVerification && (
+              <span className="px-2.5 py-0.5 rounded-full font-medium text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                Initial Verification
+              </span>
             )}
           </div>
         </div>
-
-        {!isLocked && (
-          <>
-            {submitError && (
-              <div className="text-red-700 bg-red-50 border border-red-200 rounded p-3 text-sm font-mono">{submitError}</div>
-            )}
-            <button onClick={submitTest} className="mt-8 bg-green-600 outline-none text-white px-6 py-3 w-full rounded font-mono font-bold hover:bg-green-700">
-              SUBMIT FOR REVIEW
-            </button>
-          </>
-        )}
+        <div className="flex items-center gap-3">
+          <Link
+            href="/tests"
+            className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-medium text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+          >
+            Back to Queue
+          </Link>
+        </div>
       </div>
 
-      {/* Right Column: Observation Workspace */}
-      <div className="w-full md:w-2/3 border p-6 rounded bg-white shadow-sm">
-        <h2 className="text-xl font-bold font-mono mb-4 text-gray-800">OBSERVATION WORKSPACE</h2>
-
-        {/* Tabs based on applicable tests */}
-        <div className="flex border-b mb-6 font-mono text-sm overflow-x-auto">
-          {Object.entries(testCase.testConfiguration).map(([testKey, status]) => {
-            // Note status checks can be added here
-            if (status === 'NOT APPLICABLE') return null;
-            const tabName = testKey.toUpperCase().replace('SETTING', '_SETTING');
-            return (
-              <button
-                key={testKey}
-                onClick={() => setActiveTab(tabName)}
-                className={`py-2 px-4 whitespace-nowrap ${activeTab === tabName ? 'border-b-2 border-blue-600 text-blue-600 font-bold' : 'text-gray-500 hover:text-gray-800'}`}
-              >
-                {tabName}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Input Form */}
-        {!isLocked && (
-          <div className="bg-gray-100 p-4 rounded mb-6 flex gap-4 flex-wrap items-end font-mono">
-            <div className="flex-1 min-w-[120px]">
-              <label className="block text-xs mb-1 font-bold">Load ($L$)</label>
-              <input
-                className="border p-2 w-full rounded bg-white"
-                placeholder="String strict"
-                value={obsForm.load}
-                onChange={e => setObsForm({...obsForm, load: e.target.value})}
-              />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column: Test Case Info & Environment */}
+        <div className="space-y-6">
+          {/* Instrument Info */}
+          <div className="card p-5">
+            <h3 className="font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+              <Scale className="w-4 h-4 text-slate-400" />
+              Instrument Information
+            </h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-700">
+                <span className="text-slate-500 dark:text-slate-400">Name</span>
+                <span className="font-medium text-slate-900 dark:text-white">Loading...</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-700">
+                <span className="text-slate-500 dark:text-slate-400">Model</span>
+                <span className="font-medium text-slate-900 dark:text-white">Loading...</span>
+              </div>
+              <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-700">
+                <span className="text-slate-500 dark:text-slate-400">Serial Number</span>
+                <span className="font-mono text-slate-900 dark:text-white">Loading...</span>
+              </div>
+              <div className="flex justify-between py-2">
+                <span className="text-slate-500 dark:text-slate-400">Accuracy Class</span>
+                <span className="font-medium text-slate-900 dark:text-white">Loading...</span>
+              </div>
             </div>
-            <div className="flex-1 min-w-[120px]">
-              <label className="block text-xs mb-1 font-bold">Indication ($I$)</label>
-              <input
-                className="border p-2 w-full rounded bg-white"
-                placeholder="String strict"
-                value={obsForm.indication}
-                onChange={e => setObsForm({...obsForm, indication: e.target.value})}
-              />
-            </div>
-            <div className="flex-1 min-w-[120px]">
-              <label className="block text-xs mb-1 font-bold">Add. Weights ($\Delta L$)</label>
-              <input
-                className="border p-2 w-full rounded bg-white"
-                placeholder="String strict"
-                value={obsForm.additionalWeights}
-                onChange={e => setObsForm({...obsForm, additionalWeights: e.target.value})}
-              />
-            </div>
-            <button onClick={addObservation} className="bg-gray-800 text-white px-6 py-2 rounded hover:bg-black font-bold h-10">
-              RECORD
-            </button>
           </div>
-        )}
 
-        {/* Readings Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse font-mono text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b">
-                <th className="p-3">Seq</th>
-                <th className="p-3">Load (L)</th>
-                <th className="p-3">Indication (I)</th>
-                <th className="p-3">$\\Delta$ L</th>
-              </tr>
-            </thead>
-            <tbody>
-              {observations.filter(o => o.testType === activeTab).map(obs => (
-                <tr key={obs.id} className="border-b hover:bg-gray-50">
-                  <td className="p-3">#{obs.sequence}</td>
-                  <td className="p-3 font-semibold text-blue-800 bg-blue-50">{obs.load}</td>
-                  <td className="p-3 font-semibold text-green-800 bg-green-50">{obs.indication}</td>
-                  <td className="p-3 font-semibold text-purple-800 bg-purple-50">{obs.additionalWeights}</td>
-                </tr>
-              ))}
-              {observations.filter(o => o.testType === activeTab).length === 0 && (
-                <tr>
-                  <td colSpan={4} className="p-6 text-center text-gray-400">
-                    No observations recorded yet.
-                  </td>
-                </tr>
+          {/* Laboratory Conditions */}
+          <div className="card p-5">
+            <h3 className="font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+              <Thermometer className="w-4 h-4 text-slate-400" />
+              Laboratory Conditions
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  Temperature (°C)
+                </label>
+                <div className="relative">
+                  <input
+                    disabled={isLocked}
+                    value={lab.temperature}
+                    onChange={e => setLab({...lab, temperature: e.target.value})}
+                    className={cn(
+                      "block w-full px-3 py-2 bg-white dark:bg-slate-800 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all",
+                      isLocked ? "border-slate-200 dark:border-slate-700 opacity-60 cursor-not-allowed" : "border-slate-300 dark:border-slate-600 focus:border-indigo-500"
+                    )}
+                  />
+                  {isLocked && <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  Humidity (%)
+                </label>
+                <div className="relative">
+                  <input
+                    disabled={isLocked}
+                    value={lab.humidity}
+                    onChange={e => setLab({...lab, humidity: e.target.value})}
+                    className={cn(
+                      "block w-full px-3 py-2 bg-white dark:bg-slate-800 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all",
+                      isLocked ? "border-slate-200 dark:border-slate-700 opacity-60 cursor-not-allowed" : "border-slate-300 dark:border-slate-600 focus:border-indigo-500"
+                    )}
+                  />
+                  {isLocked && <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  Pressure (hPa)
+                </label>
+                <div className="relative">
+                  <input
+                    disabled={isLocked}
+                    value={lab.pressure}
+                    onChange={e => setLab({...lab, pressure: e.target.value})}
+                    className={cn(
+                      "block w-full px-3 py-2 bg-white dark:bg-slate-800 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all",
+                      isLocked ? "border-slate-200 dark:border-slate-700 opacity-60 cursor-not-allowed" : "border-slate-300 dark:border-slate-600 focus:border-indigo-500"
+                    )}
+                  />
+                  {isLocked && <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />}
+                </div>
+              </div>
+              {!isLocked && (
+                <button
+                  onClick={saveLabConditions}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  Save Conditions
+                </button>
               )}
-            </tbody>
-          </table>
+            </div>
+          </div>
+
+          {/* Action Panel */}
+          {!isLocked && (
+            <div className="card p-5 border-l-4 border-l-amber-500">
+              <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-500" />
+                Submit for Review
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                Once submitted, this test case will be locked and sent for review. All observations will become read-only.
+              </p>
+              {submitError && (
+                <div className="mb-3 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg text-sm text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
+                  {submitError}
+                </div>
+              )}
+              <button
+                onClick={submitTest}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-all shadow-lg shadow-amber-600/20"
+              >
+                <CheckCircle2 className="w-5 h-5" />
+                Submit for Review
+              </button>
+            </div>
+          )}
+
+          {isLocked && testCase.status === 'APPROVED' && (
+            <div className="card p-5 border-l-4 border-l-emerald-500">
+              <h3 className="font-semibold text-emerald-700 dark:text-emerald-400 mb-3 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5" />
+                Test Case Approved
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                This test case has been approved with all metrological checks passing.
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Mathematical isolation guarantee disclaimer */}
-        <div className="mt-8 text-xs text-gray-400 font-mono border-t pt-4">
-          PHASE 5 COMPLIANCE: Raw observation inputs ($L, I, \Delta L$) are persisted strictly as strings. Mathematical derivation of $P$ and $E_c$ is deferred to Phase 6 arbitrary-precision calculation engine.
+        {/* Right Column: Observation Workspace */}
+        <div className="lg:col-span-2">
+          <div className="card overflow-hidden flex flex-col h-[600px]">
+            {/* Tabs */}
+            <div className="border-b border-slate-200 dark:border-slate-700 overflow-x-auto">
+              <div className="flex min-w-max">
+                {applicableTests.map((test) => (
+                  <button
+                    key={test}
+                    onClick={() => setActiveTab(test)}
+                    className={cn(
+                      "px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+                      activeTab === test
+                        ? "border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/20"
+                        : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    )}
+                  >
+                    {test}
+                    <span className={cn(
+                      "ml-2 px-2 py-0.5 rounded-full text-xs",
+                      activeTab === test
+                        ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+                        : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                    )}>
+                      {observationsByType[test]?.length || 0}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Observation Form */}
+            {!isLocked && (
+              <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                      Load (L) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={obsForm.load}
+                      onChange={e => setObsForm({...obsForm, load: e.target.value})}
+                      placeholder="e.g., 100.00"
+                      className="block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                      Indication (I) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={obsForm.indication}
+                      onChange={e => setObsForm({...obsForm, indication: e.target.value})}
+                      placeholder="e.g., 100.02"
+                      className="block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                      Add. Weights (ΔL)
+                    </label>
+                    <input
+                      type="text"
+                      value={obsForm.additionalWeights}
+                      onChange={e => setObsForm({...obsForm, additionalWeights: e.target.value})}
+                      placeholder="e.g., 0.00"
+                      className="block w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-between items-center mt-3">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    <span className="text-rose-500">*</span> Required fields
+                  </p>
+                  <button
+                    onClick={addObservation}
+                    className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Record Observation
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Observations Table */}
+            <div className="flex-1 overflow-auto">
+              {observationsByType[activeTab]?.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-8">
+                  <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                    <FileText className="w-8 h-8 text-slate-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-slate-900 dark:text-white">No observations recorded</h3>
+                  <p className="text-slate-500 dark:text-slate-400 mt-1 max-w-xs">
+                    Use the form above to add observations for {activeTab} tests
+                  </p>
+                </div>
+              ) : (
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 dark:bg-slate-800/50 sticky top-0 z-10">
+                    <tr className="text-slate-500 dark:text-slate-400 uppercase tracking-wider text-xs">
+                      <th className="px-4 py-3 font-medium w-16">Seq</th>
+                      <th className="px-4 py-3 font-medium">Load (L)</th>
+                      <th className="px-4 py-3 font-medium">Indication (I)</th>
+                      <th className="px-4 py-3 font-medium">ΔL</th>
+                      {!isLocked && <th className="px-4 py-3 font-medium text-right">Actions</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                    {observationsByType[activeTab]?.map((obs) => {
+                      const mpeStatus = getMPEStatus(obs.load, obs.indication)
+                      return (
+                        <tr key={obs.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                          <td className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">
+                            {obs.sequence}
+                          </td>
+                          <td className="px-4 py-3 font-mono font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-50/30 dark:bg-indigo-900/20">
+                            {obs.load}
+                          </td>
+                          <td className="px-4 py-3 font-mono font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50/30 dark:bg-emerald-900/20">
+                            {obs.indication}
+                          </td>
+                          <td className="px-4 py-3 font-mono font-medium text-purple-700 dark:text-purple-300 bg-purple-50/30 dark:bg-purple-900/20">
+                            {obs.additionalWeights}
+                          </td>
+                          {!isLocked && (
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                onClick={() => deleteObservation(obs.id)}
+                                className="p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-500 dark:text-slate-400">
+              <div className="flex items-center justify-between">
+                <span>
+                  {activeTab}: {observationsByType[activeTab]?.length || 0} observation{observationsByType[activeTab]?.length !== 1 ? 's' : ''} recorded
+                </span>
+                <span className="flex items-center gap-1">
+                  <FileText className="w-3 h-3" />
+                  Phase 5: String-based observation storage
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  );
+  )
 }
