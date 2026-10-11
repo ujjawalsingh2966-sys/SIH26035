@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useAccount } from '../../lib/account-context'
 import {
   ClipboardList,
   PlusCircle,
@@ -43,6 +44,7 @@ interface TestCase {
 }
 
 export default function TestsPage() {
+  const user = useAccount()
   const [testCases, setTestCases] = useState<TestCase[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -135,9 +137,9 @@ export default function TestsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-medium text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-            + Start New Test
-          </button>
+          {user?.role === 'Technician' && <Link href="/instruments/new" className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg font-medium text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+            Intake an instrument
+          </Link>}
         </div>
       </div>
 
