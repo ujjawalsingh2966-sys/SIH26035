@@ -43,6 +43,14 @@ observationRoutes.post(
       return res.status(403).json({ success: false, error: 'Cannot modify observations unless test case is in TESTING status' });
     }
 
+    const existingObservations = observationStore.findAll().filter(
+      o => o.testCaseId === data.testCaseId && o.testType === data.testType
+    );
+    const seqNum = Number(data.sequence);
+    if (existingObservations.some(o => o.sequence === seqNum)) {
+      return res.status(400).json({ success: false, error: `Sequence ${seqNum} already exists for ${data.testType}` });
+    }
+
     const instrument = instrumentStore.findById(testCase.instrumentId);
     if (!instrument) {
       return res.status(404).json({ success: false, error: 'Instrument not found for this test case' });
@@ -91,10 +99,54 @@ observationRoutes.post(
       metadata: {
         observationId: newObservation.id,
         testType: newObservation.testType,
+        sequence: newObservation.sequence,
         verdict: newObservation.evaluation.compliance.verdict
       }
     });
 
     res.status(201).json({ success: true, data: newObservation });
+  }
+);
+
+observationRoutes.delete(
+  '/:id',
+  requireRole(['Technician']),
+  (req: Request, res: Response) => {
+    const user = (req as any).user;
+    const observation = observationStore.findById(req.params.id);
+    if (!observation) {
+      return res.status(404).json({ success: false, error: 'Observation not found' });
+    }
+
+    const testCase = testCaseStore.findById(observation.testCaseId);
+    if (!testCase) {
+      return res.status(404).json({ success: false, error: 'Parent test case not found' });
+    }
+
+    // Role-based IDOR prevention
+    if (user.role === 'Technician' && testCase.technicianId !== user.id) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Cannot delete observations for test cases assigned to others' });
+    }
+
+    if (testCase.status !== 'TESTING') {
+      return res.status(403).json({ success: false, error: 'Cannot delete observations unless test case is in TESTING status' });
+    }
+
+    observationStore.deleteItem(observation.id);
+
+    AuditService.recordEvent({
+      testCaseId: testCase.id,
+      actorId: user.id,
+      actorRole: user.role,
+      action: 'OBSERVATION_DELETED',
+      metadata: {
+        observationId: observation.id,
+        testType: observation.testType,
+        sequence: observation.sequence,
+        deletedObservation: observation
+      }
+    });
+
+    res.json({ success: true, message: 'Observation deleted successfully' });
   }
 );

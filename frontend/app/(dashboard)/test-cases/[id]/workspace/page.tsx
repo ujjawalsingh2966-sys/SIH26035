@@ -24,7 +24,8 @@ import {
   Settings,
   Play,
   RotateCcw,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -78,6 +79,9 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
   const [submitError, setSubmitError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [showSuccessToast, setShowSuccessToast] = useState(false)
+  const [savingLab, setSavingLab] = useState(false)
+  const [addingObs, setAddingObs] = useState(false)
+  const [deletingObsId, setDeletingObsId] = useState<string | null>(null)
 
   // Lab conditions form
   const [lab, setLab] = useState({ temperature: '', humidity: '', pressure: '' })
@@ -97,16 +101,28 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
     try {
       const token = localStorage.getItem('nawi_token')
 
-      // Fetch test case
-      const tcRes = await fetch(`${API_BASE_URL}/api/v1/test-cases`, {
+      // Fetch test case via authorized single read endpoint, fallback to list if needed
+      const tcRes = await fetch(`${API_BASE_URL}/api/v1/test-cases/${params.id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const tcData = await tcRes.json()
-      const currentTc = tcData.data?.find((t: TestCase) => t.id === params.id)
-
-      setTestCase(currentTc)
-      if (currentTc?.laboratoryConditions) {
-        setLab(currentTc.laboratoryConditions)
+      if (tcRes.ok && tcData.success && tcData.data) {
+        setTestCase(tcData.data)
+        if (tcData.data.laboratoryConditions) {
+          setLab(tcData.data.laboratoryConditions)
+        }
+      } else {
+        const listRes = await fetch(`${API_BASE_URL}/api/v1/test-cases`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        const listData = await listRes.json()
+        const currentTc = listData.data?.find((t: TestCase) => t.id === params.id)
+        if (currentTc) {
+          setTestCase(currentTc)
+          if (currentTc.laboratoryConditions) {
+            setLab(currentTc.laboratoryConditions)
+          }
+        }
       }
 
       // Fetch observations
@@ -115,15 +131,19 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
       })
       const obsData = await obsRes.json()
       setObservations(obsData.data || [])
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to fetch data:', e)
+      setSubmitError(e?.message || 'Failed to load test case data')
     } finally {
       setLoading(false)
     }
   }
 
   const saveLabConditions = async () => {
+    if (savingLab) return
     const token = localStorage.getItem('nawi_token')
+    setSavingLab(true)
+    setSubmitError('')
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/test-cases/${params.id}/laboratory-conditions`, {
         method: 'PUT',
@@ -135,35 +155,42 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
       })
       const result = await res.json()
 
-      if (result.success) {
+      if (res.ok && result.success) {
+        if (result.data) {
+          setTestCase(result.data)
+          if (result.data.laboratoryConditions) {
+            setLab(result.data.laboratoryConditions)
+          }
+        }
         setSuccessMessage('Laboratory conditions saved successfully')
         setShowSuccessToast(true)
         setTimeout(() => setShowSuccessToast(false), 3000)
-        // Refresh data
-        const tcRes = await fetch(`${API_BASE_URL}/api/v1/test-cases/${params.id}/workspace`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        const tcData = await tcRes.json()
-        if (tcData.data?.laboratoryConditions) {
-          setLab(tcData.data.laboratoryConditions)
-        }
+      } else {
+        setSubmitError(result.error || `Failed to save laboratory conditions (HTTP ${res.status})`)
+        setTimeout(() => setSubmitError(''), 5000)
       }
-    } catch (e) {
-      setSubmitError('Failed to save laboratory conditions')
-      setTimeout(() => setSubmitError(''), 3000)
+    } catch (e: any) {
+      setSubmitError(e?.message || 'Network error while saving laboratory conditions')
+      setTimeout(() => setSubmitError(''), 5000)
+    } finally {
+      setSavingLab(false)
     }
   }
 
   const addObservation = async () => {
+    if (addingObs) return
     if (!obsForm.load || !obsForm.indication) {
       setSubmitError('Load and indication are required fields')
-      setTimeout(() => setSubmitError(''), 3000)
+      setTimeout(() => setSubmitError(''), 4000)
       return
     }
 
+    setAddingObs(true)
+    setSubmitError('')
     try {
       const typeObs = observations.filter(o => o.testType === activeTab)
-      const seq = typeObs.length + 1
+      const maxSeq = typeObs.reduce((max, o) => Math.max(max, Number(o.sequence) || 0), 0)
+      const seq = maxSeq + 1
       const token = localStorage.getItem('nawi_token')
 
       const res = await fetch(`${API_BASE_URL}/api/v1/observations`, {
@@ -183,36 +210,50 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
       })
       const result = await res.json()
 
-      if (result.success) {
+      if (res.ok && result.success) {
         setObservations([...observations, result.data])
         setObsForm({ load: '', indication: '', additionalWeights: '0' })
         setSuccessMessage('Observation recorded successfully')
         setShowSuccessToast(true)
         setTimeout(() => setShowSuccessToast(false), 3000)
+      } else {
+        setSubmitError(result.error || `Failed to record observation (HTTP ${res.status})`)
+        setTimeout(() => setSubmitError(''), 5000)
       }
-    } catch (e) {
-      setSubmitError('Failed to record observation')
-      setTimeout(() => setSubmitError(''), 3000)
+    } catch (e: any) {
+      setSubmitError(e?.message || 'Network error while recording observation')
+      setTimeout(() => setSubmitError(''), 5000)
+    } finally {
+      setAddingObs(false)
     }
   }
 
   const deleteObservation = async (obsId: string) => {
+    if (deletingObsId) return
+    setDeletingObsId(obsId)
+    setSubmitError('')
     try {
       const token = localStorage.getItem('nawi_token')
       const res = await fetch(`${API_BASE_URL}/api/v1/observations/${obsId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
+      const result = await res.json()
 
-      if (res.ok) {
+      if (res.ok && result.success) {
         setObservations(observations.filter(o => o.id !== obsId))
-        setSuccessMessage('Observation deleted')
+        setSuccessMessage('Observation deleted successfully')
         setShowSuccessToast(true)
         setTimeout(() => setShowSuccessToast(false), 3000)
+      } else {
+        setSubmitError(result.error || `Failed to delete observation (HTTP ${res.status})`)
+        setTimeout(() => setSubmitError(''), 5000)
       }
-    } catch (e) {
-      setSubmitError('Failed to delete observation')
-      setTimeout(() => setSubmitError(''), 3000)
+    } catch (e: any) {
+      setSubmitError(e?.message || 'Network error while deleting observation')
+      setTimeout(() => setSubmitError(''), 5000)
+    } finally {
+      setDeletingObsId(null)
     }
   }
 
@@ -386,6 +427,24 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
         </div>
       </div>
 
+      {submitError && (
+        <div className="p-4 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-center justify-between gap-4 text-rose-800 dark:text-rose-200">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-sm">Action failed</p>
+              <p className="text-xs text-rose-600 dark:text-rose-400 mt-0.5">{submitError}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setSubmitError('')}
+            className="text-xs text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-200 underline flex-shrink-0"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Test Case Info & Environment */}
         <div className="space-y-6">
@@ -476,10 +535,20 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
               {!isLocked && (
                 <button
                   onClick={saveLabConditions}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  disabled={savingLab}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
                 >
-                  <Save className="w-4 h-4" />
-                  Save Conditions
+                  {savingLab ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Save Conditions
+                    </>
+                  )}
                 </button>
               )}
             </div>
@@ -687,10 +756,20 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                   </p>
                   <button
                     onClick={addObservation}
-                    className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    disabled={addingObs}
+                    className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
                   >
-                    <Plus className="w-4 h-4" />
-                    Record Observation
+                    {addingObs ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Recording...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4" />
+                        Record Observation
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -787,9 +866,15 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                             <td className="px-4 py-3 text-right">
                               <button
                                 onClick={() => deleteObservation(obs.id)}
-                                className="p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors"
+                                disabled={deletingObsId === obs.id}
+                                className="p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                                title="Delete Observation"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                {deletingObsId === obs.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
                               </button>
                             </td>
                           )}

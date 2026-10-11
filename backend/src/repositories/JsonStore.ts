@@ -52,6 +52,14 @@ export class JsonStore<T extends { id: string }> {
     return item;
   }
 
+  deleteItem(id: string): boolean {
+    const existed = this.collection.delete(id);
+    if (existed) {
+      this.save();
+    }
+    return existed;
+  }
+
   clear(): void {
     this.collection.clear();
     this.save();
