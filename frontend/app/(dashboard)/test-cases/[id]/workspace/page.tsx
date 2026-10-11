@@ -487,7 +487,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
 
           {/* Action Panel */}
           {testCase.status === 'DRAFT' && (
-            <div className="card p-5 border-l-4 border-l-indigo-500">
+            <div className="card p-5">
               <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                 <Play className="w-4 h-4 text-indigo-500" />
                 Start Testing
@@ -512,7 +512,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
           )}
 
           {testCase.status === 'RETURNED_FOR_CORRECTION' && (
-            <div className="card p-5 border-l-4 border-l-rose-500">
+            <div className="card p-5">
               <h3 className="font-semibold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
                 <RotateCcw className="w-4 h-4 text-rose-500" />
                 Returned for Correction
@@ -548,7 +548,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
           )}
 
           {testCase.status === 'TESTING' && (
-            <div className="card p-5 border-l-4 border-l-amber-500">
+            <div className="card p-5">
               <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-500" />
                 Submit for Review
@@ -573,7 +573,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
           )}
 
           {isLocked && testCase.status === 'READY_FOR_REVIEW' && (
-            <div className="card p-5 border-l-4 border-l-amber-500">
+            <div className="card p-5">
               <h3 className="font-semibold text-amber-700 dark:text-amber-400 mb-3 flex items-center gap-2">
                 <Lock className="w-5 h-5" />
                 Ready for Review
@@ -585,8 +585,8 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
           )}
 
           {isLocked && testCase.status === 'UNDER_REVIEW' && (
-            <div className="card p-5 border-l-4 border-l-purple-500">
-              <h3 className="font-semibold text-purple-700 dark:text-purple-400 mb-3 flex items-center gap-2">
+            <div className="card p-5">
+              <h3 className="font-semibold text-indigo-700 dark:text-indigo-400 mb-3 flex items-center gap-2">
                 <Lock className="w-5 h-5" />
                 Under Review
               </h3>
@@ -597,7 +597,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
           )}
 
           {isLocked && testCase.status === 'APPROVED' && (
-            <div className="card p-5 border-l-4 border-l-emerald-500">
+            <div className="card p-5">
               <h3 className="font-semibold text-emerald-700 dark:text-emerald-400 mb-3 flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5" />
                 Test Case Approved
