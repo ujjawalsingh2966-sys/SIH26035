@@ -14,13 +14,14 @@ import {
   FileText,
   ChevronRight,
   Clock4,
-  AlertTriangle
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000'
 
-export type TestCaseStatus = 'DRAFT' | 'NOT STARTED' | 'IN_PROGRESS' | 'SUBMITTED_FOR_REVIEW' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'COMPLETE' | 'NOT APPLICABLE'
+export type TestCaseStatus = 'DRAFT' | 'TESTING' | 'READY_FOR_REVIEW' | 'UNDER_REVIEW' | 'RETURNED_FOR_CORRECTION' | 'APPROVED'
 
 interface TestCase {
   id: string
@@ -44,24 +45,35 @@ interface TestCase {
 export default function TestsPage() {
   const [testCases, setTestCases] = useState<TestCase[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
 
-  useEffect(() => {
-    const fetchTestCases = async () => {
-      try {
-        const token = localStorage.getItem('nawi_token')
-        const res = await fetch(`${API_BASE_URL}/api/v1/test-cases`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        const data = await res.json()
-        setTestCases(data.data || [])
-      } catch (error) {
-        console.error('Failed to fetch test cases:', error)
-      } finally {
-        setLoading(false)
+  const fetchTestCases = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const token = localStorage.getItem('nawi_token')
+      const res = await fetch(`${API_BASE_URL}/api/v1/test-cases`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!res.ok) {
+        throw new Error(`Failed to fetch test cases (HTTP ${res.status})`)
       }
+      const data = await res.json()
+      if (data && data.success === false) {
+        throw new Error(data.error || 'Failed to fetch test cases')
+      }
+      setTestCases(data.data || [])
+    } catch (err: any) {
+      console.error('Failed to fetch test cases:', err)
+      setError(err?.message || 'Failed to fetch test cases. Please try again.')
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     fetchTestCases()
   }, [])
 
@@ -82,23 +94,21 @@ export default function TestsPage() {
   const getStatusColor = (status: TestCaseStatus) => {
     switch (status) {
       case 'DRAFT': return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-      case 'NOT STARTED': return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-      case 'IN_PROGRESS': return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-      case 'SUBMITTED_FOR_REVIEW': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+      case 'TESTING': return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+      case 'READY_FOR_REVIEW': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
       case 'UNDER_REVIEW': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+      case 'RETURNED_FOR_CORRECTION': return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'
       case 'APPROVED': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-      case 'COMPLETE': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-      case 'REJECTED': return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'
       default: return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
     }
   }
 
   const getStatusIcon = (status: TestCaseStatus) => {
     switch (status) {
-      case 'APPROVED': case 'COMPLETE': return CheckCircle2
-      case 'SUBMITTED_FOR_REVIEW': case 'UNDER_REVIEW': return FileText
-      case 'IN_PROGRESS': return Clock4
-      case 'REJECTED': return AlertTriangle
+      case 'APPROVED': return CheckCircle2
+      case 'READY_FOR_REVIEW': case 'UNDER_REVIEW': return FileText
+      case 'TESTING': return Clock4
+      case 'RETURNED_FOR_CORRECTION': return AlertTriangle
       default: return ClipboardList
     }
   }
@@ -131,6 +141,26 @@ export default function TestsPage() {
         </div>
       </div>
 
+      {/* Error Alert */}
+      {error && (
+        <div className="p-4 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-center justify-between gap-4 text-rose-800 dark:text-rose-200">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-sm">Failed to load test cases</p>
+              <p className="text-xs text-rose-600 dark:text-rose-400 mt-0.5">{error}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => fetchTestCases()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium transition-colors flex-shrink-0"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Status Filters */}
       <div className="card p-4">
         <div className="flex flex-col md:flex-row gap-4">
@@ -152,11 +182,12 @@ export default function TestsPage() {
               className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 outline-none cursor-pointer whitespace-nowrap"
             >
               <option value="all">All Statuses</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="SUBMITTED_FOR_REVIEW">Submitted for Review</option>
+              <option value="TESTING">Testing</option>
+              <option value="READY_FOR_REVIEW">Ready for Review</option>
               <option value="UNDER_REVIEW">Under Review</option>
+              <option value="RETURNED_FOR_CORRECTION">Returned for Correction</option>
               <option value="APPROVED">Approved</option>
-              <option value="NOT STARTED">Not Started</option>
+              <option value="DRAFT">Draft</option>
             </select>
           </div>
         </div>
@@ -165,28 +196,26 @@ export default function TestsPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="card p-4">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Pending</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Active Tests</p>
           <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-            {statusCounts['DRAFT'] || 0 + (statusCounts['NOT STARTED'] || 0)}
+            {((statusCounts['DRAFT'] || 0) + (statusCounts['TESTING'] || 0))}
           </p>
         </div>
         <div className="card p-4">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">In Progress</p>
-          <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">{statusCounts['IN_PROGRESS'] || 0}</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Ready for Review</p>
+          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">{statusCounts['READY_FOR_REVIEW'] || 0}</p>
         </div>
         <div className="card p-4">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Review</p>
-          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
-            {(statusCounts['SUBMITTED_FOR_REVIEW'] || 0) + (statusCounts['UNDER_REVIEW'] || 0)}
-          </p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Under Review</p>
+          <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 mt-1">{statusCounts['UNDER_REVIEW'] || 0}</p>
         </div>
         <div className="card p-4">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Approved</p>
           <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{statusCounts['APPROVED'] || 0}</p>
         </div>
         <div className="card p-4">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Rejected</p>
-          <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">{statusCounts['REJECTED'] || 0}</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Returned</p>
+          <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">{statusCounts['RETURNED_FOR_CORRECTION'] || 0}</p>
         </div>
       </div>
 
@@ -248,7 +277,7 @@ export default function TestsPage() {
                           getStatusColor(testCase.status)
                         )}>
                           <StatusIcon className="w-3.5 h-3.5" />
-                          {testCase.status.replace('_', ' ')}
+                          {testCase.status.replace(/_/g, ' ')}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-slate-700 dark:text-slate-300 text-xs">
@@ -287,10 +316,10 @@ export default function TestsPage() {
         <div className="flex flex-wrap gap-4">
           {[
             { status: 'DRAFT', label: 'Draft', icon: ClipboardList, completed: false },
-            { status: 'NOT STARTED', label: 'Not Started', icon: Clock, completed: false },
-            { status: 'IN_PROGRESS', label: 'In Progress', icon: Clock4, completed: false },
-            { status: 'SUBMITTED_FOR_REVIEW', label: 'Submitted', icon: FileText, completed: false },
+            { status: 'TESTING', label: 'Testing', icon: Clock4, completed: false },
+            { status: 'READY_FOR_REVIEW', label: 'Ready for Review', icon: FileText, completed: false },
             { status: 'UNDER_REVIEW', label: 'Under Review', icon: AlertCircle, completed: false },
+            { status: 'RETURNED_FOR_CORRECTION', label: 'Returned', icon: AlertTriangle, completed: false },
             { status: 'APPROVED', label: 'Approved', icon: CheckCircle2, completed: true },
           ].map((step, idx, arr) => {
             const isActive = idx === arr.length - 1

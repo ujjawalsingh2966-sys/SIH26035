@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
+  AlertTriangle,
+  RotateCcw,
   TrendingUp,
   Users,
   FileText,
@@ -30,11 +32,13 @@ interface Instrument {
   d?: string
 }
 
+export type TestCaseStatus = 'DRAFT' | 'TESTING' | 'READY_FOR_REVIEW' | 'UNDER_REVIEW' | 'RETURNED_FOR_CORRECTION' | 'APPROVED'
+
 interface TestCase {
   id: string
   instrumentId: string
   technicianId: string
-  status: string
+  status: TestCaseStatus
   reviewerId?: string
   reviewNotes?: string
   approvalDate?: string
@@ -51,41 +55,58 @@ export default function DashboardPage() {
   const [instruments, setInstruments] = useState<Instrument[]>([])
   const [testCases, setTestCases] = useState<TestCase[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
 
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      try {
-        const token = localStorage.getItem('nawi_token')
-        const authHeaders = { 'Authorization': `Bearer ${token}` }
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const token = localStorage.getItem('nawi_token')
+      const authHeaders = { 'Authorization': `Bearer ${token}` }
 
-        const [instrumentsRes, testCasesRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/v1/instruments`, { headers: authHeaders }),
-          fetch(`${API_BASE_URL}/api/v1/test-cases`, { headers: authHeaders })
-        ])
+      const [instrumentsRes, testCasesRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/v1/instruments`, { headers: authHeaders }),
+        fetch(`${API_BASE_URL}/api/v1/test-cases`, { headers: authHeaders })
+      ])
 
-        const [instrumentsData, testCasesData] = await Promise.all([
-          instrumentsRes.json().then(d => d.data || []),
-          testCasesRes.json().then(d => d.data || [])
-        ])
-
-        setInstruments(instrumentsData)
-        setTestCases(testCasesData)
-      } catch (error) {
-        console.error('Failed to load dashboard data:', error)
-      } finally {
-        setLoading(false)
+      if (!instrumentsRes.ok || !testCasesRes.ok) {
+        throw new Error(
+          `Failed to load dashboard data (Instruments: HTTP ${instrumentsRes.status}, Tests: HTTP ${testCasesRes.status})`
+        )
       }
-    }
 
+      const [instrumentsData, testCasesData] = await Promise.all([
+        instrumentsRes.json().then(d => {
+          if (d && d.success === false) throw new Error(d.error || 'Failed to fetch instruments')
+          return d.data || []
+        }),
+        testCasesRes.json().then(d => {
+          if (d && d.success === false) throw new Error(d.error || 'Failed to fetch test cases')
+          return d.data || []
+        })
+      ])
+
+      setInstruments(instrumentsData)
+      setTestCases(testCasesData)
+    } catch (err: any) {
+      console.error('Failed to load dashboard data:', err)
+      setError(err?.message || 'Failed to load dashboard data. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     loadDashboardData()
   }, [])
 
-  // Calculate dashboard stats
+  // Calculate dashboard stats matching RepositoryService.getDashboardMetrics definitions
   const stats = {
     totalInstruments: instruments.length,
-    activeTests: testCases.filter(tc => tc.status === 'IN_PROGRESS').length,
-    pendingReview: testCases.filter(tc => tc.status === 'SUBMITTED_FOR_REVIEW').length,
+    activeTests: testCases.filter(tc => ['DRAFT', 'TESTING'].includes(tc.status)).length,
+    pendingReview: testCases.filter(tc => ['READY_FOR_REVIEW', 'UNDER_REVIEW'].includes(tc.status)).length,
+    returned: testCases.filter(tc => tc.status === 'RETURNED_FOR_CORRECTION').length,
     approved: testCases.filter(tc => tc.status === 'APPROVED').length,
     instrumentsWithTests: new Set(testCases.map(tc => tc.instrumentId)).size
   }
@@ -97,27 +118,24 @@ export default function DashboardPage() {
   )
 
   // Status badge component
-  const StatusBadge = ({ status }: { status: string }) => {
+  const StatusBadge = ({ status }: { status: TestCaseStatus | string }) => {
     const statusStyles: Record<string, string> = {
       'DRAFT': 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-      'NOT STARTED': 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-      'IN_PROGRESS': 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
-      'SUBMITTED_FOR_REVIEW': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+      'TESTING': 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+      'READY_FOR_REVIEW': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
       'UNDER_REVIEW': 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+      'RETURNED_FOR_CORRECTION': 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
       'APPROVED': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-      'COMPLETE': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-      'NOT APPLICABLE': 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
-      'REJECTED': 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
     }
 
-    const style = statusStyles[status] || statusStyles['DRAFT']
+    const style = statusStyles[status] || 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
 
     return (
       <span className={cn(
         'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
         style
       )}>
-        {status.replace('_', ' ')}
+        {status.replace(/_/g, ' ')}
       </span>
     )
   }
@@ -162,8 +180,28 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Error Alert */}
+      {error && (
+        <div className="p-4 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-center justify-between gap-4 text-rose-800 dark:text-rose-200">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-sm">Failed to load dashboard data</p>
+              <p className="text-xs text-rose-600 dark:text-rose-400 mt-0.5">{error}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => loadDashboardData()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium transition-colors flex-shrink-0"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="card card-hover group">
           <div className="p-5">
             <div className="flex items-start justify-between">
@@ -201,6 +239,20 @@ export default function DashboardPage() {
               </div>
               <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg group-hover:bg-amber-100 dark:group-hover:bg-amber-900/30 transition-colors">
                 <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card card-hover group">
+          <div className="p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Returned</p>
+                <p className="text-3xl font-bold text-rose-600 dark:text-rose-400 mt-2">{stats.returned}</p>
+              </div>
+              <div className="p-2.5 bg-rose-50 dark:bg-rose-900/20 rounded-lg group-hover:bg-rose-100 dark:group-hover:bg-rose-900/30 transition-colors">
+                <AlertTriangle className="w-6 h-6 text-rose-600 dark:text-rose-400" />
               </div>
             </div>
           </div>

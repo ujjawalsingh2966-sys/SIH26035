@@ -18,16 +18,19 @@ import {
   FileText,
   Activity,
   Lock,
- Unlock,
+  Unlock,
   Download,
   Upload,
-  Settings
+  Settings,
+  Play,
+  RotateCcw,
+  AlertTriangle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000'
 
-export type TestCaseStatus = 'DRAFT' | 'NOT STARTED' | 'IN_PROGRESS' | 'SUBMITTED_FOR_REVIEW' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'COMPLETE' | 'NOT APPLICABLE'
+export type TestCaseStatus = 'DRAFT' | 'TESTING' | 'READY_FOR_REVIEW' | 'UNDER_REVIEW' | 'RETURNED_FOR_CORRECTION' | 'APPROVED'
 
 export type ObservationType = 'WEIGHING' | 'ECCENTRICITY' | 'REPEATABILITY' | 'TARE' | 'ZERO_SETTING'
 
@@ -242,7 +245,37 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
     }
   }
 
-  const isLocked = testCase && ['SUBMITTED_FOR_REVIEW', 'UNDER_REVIEW', 'APPROVED'].includes(testCase.status) ? true : undefined
+  const isLocked = Boolean(testCase && ['READY_FOR_REVIEW', 'UNDER_REVIEW', 'APPROVED'].includes(testCase.status))
+  const isTesting = testCase?.status === 'TESTING'
+
+  const startTesting = async () => {
+    try {
+      setSubmitError('')
+      const token = localStorage.getItem('nawi_token')
+      const res = await fetch(`${API_BASE_URL}/api/v1/test-cases/${params.id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: 'TESTING' })
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to start testing')
+      }
+      if (data.data) {
+        setTestCase(data.data)
+      }
+      setSuccessMessage(testCase?.status === 'RETURNED_FOR_CORRECTION' ? 'Testing resumed successfully' : 'Testing started successfully')
+      setShowSuccessToast(true)
+      setTimeout(() => setShowSuccessToast(false), 3000)
+      await fetchData()
+    } catch (error: any) {
+      setSubmitError(error.message || 'Failed to start testing')
+      setTimeout(() => setSubmitError(''), 5000)
+    }
+  }
 
   // Calculate MPE (Maximum Permissible Error) placeholder
   // In Phase 6, this will use actual metrological calculations
@@ -328,12 +361,13 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
             <span className={cn(
               'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-medium',
               testCase.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' :
-              testCase.status === 'SUBMITTED_FOR_REVIEW' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+              testCase.status === 'READY_FOR_REVIEW' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
               testCase.status === 'UNDER_REVIEW' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' :
-              testCase.status === 'IN_PROGRESS' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' :
+              testCase.status === 'TESTING' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' :
+              testCase.status === 'RETURNED_FOR_CORRECTION' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' :
               'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
             )}>
-              {testCase.status.replace('_', ' ')}
+              {testCase.status.replace(/_/g, ' ')}
             </span>
             {testCase.isInitialVerification && (
               <span className="px-2.5 py-0.5 rounded-full font-medium text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
@@ -452,7 +486,68 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
           </div>
 
           {/* Action Panel */}
-          {!isLocked && (
+          {testCase.status === 'DRAFT' && (
+            <div className="card p-5 border-l-4 border-l-indigo-500">
+              <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                <Play className="w-4 h-4 text-indigo-500" />
+                Start Testing
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                This test case is currently in Draft status. Transition to Testing to begin recording observations.
+              </p>
+              {submitError && (
+                <div className="mb-3 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg text-sm text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{submitError}</span>
+                </div>
+              )}
+              <button
+                onClick={startTesting}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-all shadow-lg shadow-indigo-600/20"
+              >
+                <Play className="w-5 h-5" />
+                Start Testing
+              </button>
+            </div>
+          )}
+
+          {testCase.status === 'RETURNED_FOR_CORRECTION' && (
+            <div className="card p-5 border-l-4 border-l-rose-500">
+              <h3 className="font-semibold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                <RotateCcw className="w-4 h-4 text-rose-500" />
+                Returned for Correction
+              </h3>
+              {testCase.reviewNotes && (
+                <div className="mb-3 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg text-sm">
+                  <p className="font-medium text-rose-800 dark:text-rose-300 mb-1 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                    Reviewer Notes:
+                  </p>
+                  <p className="text-rose-700 dark:text-rose-200 text-xs">
+                    {testCase.reviewNotes}
+                  </p>
+                </div>
+              )}
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                This test case was returned by the reviewer. Resume testing to make corrections and update observations.
+              </p>
+              {submitError && (
+                <div className="mb-3 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg text-sm text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{submitError}</span>
+                </div>
+              )}
+              <button
+                onClick={startTesting}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-medium transition-all shadow-lg shadow-rose-600/20"
+              >
+                <RotateCcw className="w-5 h-5" />
+                Resume Testing
+              </button>
+            </div>
+          )}
+
+          {testCase.status === 'TESTING' && (
             <div className="card p-5 border-l-4 border-l-amber-500">
               <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-500" />
@@ -463,8 +558,8 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
               </p>
               {submitError && (
                 <div className="mb-3 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg text-sm text-rose-700 dark:text-rose-300 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" />
-                  {submitError}
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{submitError}</span>
                 </div>
               )}
               <button
@@ -477,6 +572,30 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
             </div>
           )}
 
+          {isLocked && testCase.status === 'READY_FOR_REVIEW' && (
+            <div className="card p-5 border-l-4 border-l-amber-500">
+              <h3 className="font-semibold text-amber-700 dark:text-amber-400 mb-3 flex items-center gap-2">
+                <Lock className="w-5 h-5" />
+                Ready for Review
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                This test case has been submitted and is awaiting reviewer assignment. Observations and conditions are locked.
+              </p>
+            </div>
+          )}
+
+          {isLocked && testCase.status === 'UNDER_REVIEW' && (
+            <div className="card p-5 border-l-4 border-l-purple-500">
+              <h3 className="font-semibold text-purple-700 dark:text-purple-400 mb-3 flex items-center gap-2">
+                <Lock className="w-5 h-5" />
+                Under Review
+              </h3>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                This test case is currently being reviewed by a reviewer. Observations and conditions are locked.
+              </p>
+            </div>
+          )}
+
           {isLocked && testCase.status === 'APPROVED' && (
             <div className="card p-5 border-l-4 border-l-emerald-500">
               <h3 className="font-semibold text-emerald-700 dark:text-emerald-400 mb-3 flex items-center gap-2">
@@ -484,7 +603,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                 Test Case Approved
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                This test case has been approved with all metrological checks passing.
+                This test case has been approved with all metrological checks passing. Observations and conditions are locked.
               </p>
             </div>
           )}
@@ -521,8 +640,8 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
               </div>
             </div>
 
-            {/* Observation Form */}
-            {!isLocked && (
+            {/* Observation Form / Gate Banner */}
+            {isTesting ? (
               <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                 <div className="grid grid-cols-3 gap-4">
                   <div>
@@ -575,6 +694,53 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                   </button>
                 </div>
               </div>
+            ) : (
+              <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  {testCase.status === 'DRAFT' && (
+                    <>
+                      <AlertCircle className="w-5 h-5 text-indigo-500 flex-shrink-0" />
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Observation entry is disabled in <span className="font-semibold text-slate-900 dark:text-white">DRAFT</span>. Start testing to begin recording data.
+                      </p>
+                    </>
+                  )}
+                  {testCase.status === 'RETURNED_FOR_CORRECTION' && (
+                    <>
+                      <RotateCcw className="w-5 h-5 text-rose-500 flex-shrink-0" />
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Test case was <span className="font-semibold text-rose-600 dark:text-rose-400">Returned for Correction</span>. Resume testing to record or modify observations.
+                      </p>
+                    </>
+                  )}
+                  {isLocked && (
+                    <>
+                      <Lock className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        Observations are <span className="font-semibold text-slate-900 dark:text-white">locked</span> in {testCase.status.replace(/_/g, ' ')} status.
+                      </p>
+                    </>
+                  )}
+                </div>
+                {testCase.status === 'DRAFT' && (
+                  <button
+                    onClick={startTesting}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+                  >
+                    <Play className="w-4 h-4" />
+                    Start Testing
+                  </button>
+                )}
+                {testCase.status === 'RETURNED_FOR_CORRECTION' && (
+                  <button
+                    onClick={startTesting}
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Resume Testing
+                  </button>
+                )}
+              </div>
             )}
 
             {/* Observations Table */}
@@ -586,7 +752,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                   </div>
                   <h3 className="text-lg font-medium text-slate-900 dark:text-white">No observations recorded</h3>
                   <p className="text-slate-500 dark:text-slate-400 mt-1 max-w-xs">
-                    Use the form above to add observations for {activeTab} tests
+                    {isTesting ? `Use the form above to add observations for ${activeTab} tests` : `Observations will appear here when recorded during testing.`}
                   </p>
                 </div>
               ) : (
@@ -597,7 +763,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                       <th className="px-4 py-3 font-medium">Load (L)</th>
                       <th className="px-4 py-3 font-medium">Indication (I)</th>
                       <th className="px-4 py-3 font-medium">ΔL</th>
-                      {!isLocked && <th className="px-4 py-3 font-medium text-right">Actions</th>}
+                      {isTesting && <th className="px-4 py-3 font-medium text-right">Actions</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -617,7 +783,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                           <td className="px-4 py-3 font-mono font-medium text-purple-700 dark:text-purple-300 bg-purple-50/30 dark:bg-purple-900/20">
                             {obs.additionalWeights}
                           </td>
-                          {!isLocked && (
+                          {isTesting && (
                             <td className="px-4 py-3 text-right">
                               <button
                                 onClick={() => deleteObservation(obs.id)}
