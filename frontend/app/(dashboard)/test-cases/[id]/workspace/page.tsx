@@ -1,7 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
+  Scale,
   Save,
   CheckCircle2,
   AlertCircle,
@@ -240,7 +242,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
     }
   }
 
-  const isLocked = testCase && ['SUBMITTED_FOR_REVIEW', 'UNDER_REVIEW', 'APPROVED'].includes(testCase.status)
+  const isLocked = testCase && ['SUBMITTED_FOR_REVIEW', 'UNDER_REVIEW', 'APPROVED'].includes(testCase.status) ? true : undefined
 
   // Calculate MPE (Maximum Permissible Error) placeholder
   // In Phase 6, this will use actual metrological calculations
