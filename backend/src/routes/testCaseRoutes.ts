@@ -1,24 +1,25 @@
+import { touchTestCase } from '../services/TestCaseRevision';
 import { Router, Request, Response } from 'express';
 import { body } from 'express-validator';
-import { instrumentStore, testCaseStore, auditStore } from '../repositories';
+import { instrumentStore, testCaseStore } from '../repositories';
 import { requireRole } from '../middlewares/authResolver';
 import { validateRequest } from '../middlewares/validateRequest';
 import { ApplicableTests, TestCase } from '../types/domain';
 import { WorkflowService } from '../services/WorkflowService';
 import { AuditService } from '../services/AuditService';
+import { RepositoryService } from '../services/RepositoryService';
+import { requireTestCaseAccess, requireCurrentRevision } from '../middlewares/testCaseAccess';
 
 export const testCaseRoutes = Router();
 
-testCaseRoutes.get('/', (req, res) => {
+testCaseRoutes.get('/', requireRole(['Technician', 'Reviewer', 'Administrator']), (req, res) => {
   const user = (req as any).user;
   const allTests = testCaseStore.findAll();
 
-  if (user && user.role === 'Technician') {
-    return res.json({ success: true, data: allTests.filter(tc => tc.technicianId === user.id) });
-  }
-
-  res.json({ success: true, data: allTests });
+  res.json({ success: true, data: allTests.filter(tc => RepositoryService.userHasAccess(tc, user)) });
 });
+
+testCaseRoutes.use('/:id', requireTestCaseAccess(req => req.params.id));
 
 testCaseRoutes.post(
   '/',
@@ -46,6 +47,7 @@ testCaseRoutes.post(
       instrumentId: instrument.id,
       technicianId: userId,
       status: 'DRAFT',
+      revision: 0,
       testConfiguration,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -82,65 +84,70 @@ testCaseRoutes.put(
     }
 
     // Lock condition
-    if (testCase.status === 'APPROVED' || testCase.status === 'UNDER_REVIEW' || testCase.status === 'READY_FOR_REVIEW') {
+    if (testCase.status !== 'DRAFT' && testCase.status !== 'TESTING') {
       return res.status(403).json({ success: false, error: 'Cannot modify a test case in this state' });
     }
 
+    const previousConditions = testCase.laboratoryConditions;
     testCase.laboratoryConditions = {
       temperature: req.body.temperature,
       humidity: req.body.humidity,
       pressure: req.body.pressure,
     };
-    testCase.updatedAt = new Date().toISOString();
-
-    testCaseStore.saveItem(testCase);
+    touchTestCase(testCase);
+    AuditService.recordEvent({
+      testCaseId: testCase.id, actorId: user.id, actorRole: user.role,
+      action: 'LABORATORY_CONDITIONS_UPDATED',
+      metadata: { previousConditions, conditions: testCase.laboratoryConditions }
+    });
     res.json({ success: true, data: testCase });
   }
 );
 
 // Workflow state changes
-testCaseRoutes.post('/:id/workflow/submit', requireRole(['Technician']), (req: Request, res: Response) => {
+testCaseRoutes.post('/:id/workflow/submit', requireRole(['Technician']), requireCurrentRevision, (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const testCase = WorkflowService.submitForReview(req.params.id, user.id, user.role);
     res.json({ success: true, data: testCase });
   } catch (err: any) {
-    res.status(400).json({ success: false, error: err.message });
+    res.status(err.status || 400).json({ success: false, error: err.message });
   }
 });
 
-testCaseRoutes.post('/:id/workflow/start-review', requireRole(['Reviewer', 'Administrator']), (req: Request, res: Response) => {
+testCaseRoutes.post('/:id/workflow/start-review', requireRole(['Reviewer', 'Administrator']), requireCurrentRevision, (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const testCase = WorkflowService.startReview(req.params.id, user.id, user.role);
     res.json({ success: true, data: testCase });
   } catch (err: any) {
-    res.status(400).json({ success: false, error: err.message });
+    res.status(err.status || 400).json({ success: false, error: err.message });
   }
 });
 
 testCaseRoutes.post(
   '/:id/workflow/return',
   requireRole(['Reviewer', 'Administrator']),
-  body('reason').notEmpty(),
+  body('reason').isString().bail().trim().notEmpty(),
   validateRequest,
+  requireCurrentRevision,
   (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const testCase = WorkflowService.returnForCorrection(req.params.id, user.id, user.role, req.body.reason);
     res.json({ success: true, data: testCase });
   } catch (err: any) {
-    res.status(400).json({ success: false, error: err.message });
+    res.status(err.status || 400).json({ success: false, error: err.message });
   }
 });
 
-testCaseRoutes.post('/:id/workflow/approve', requireRole(['Reviewer', 'Administrator']), (req: Request, res: Response) => {
+testCaseRoutes.post('/:id/workflow/approve', requireRole(['Reviewer', 'Administrator']), requireCurrentRevision, (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const testCase = WorkflowService.approve(req.params.id, user.id, user.role);
     res.json({ success: true, data: testCase });
   } catch (err: any) {
-    res.status(400).json({ success: false, error: err.message });
+    res.status(err.status || 400).json({ success: false, error: err.message });
   }
 });
 
@@ -149,36 +156,14 @@ testCaseRoutes.put(
   requireRole(['Technician']),
   body('status').isIn(['TESTING']),
   validateRequest,
+  requireCurrentRevision,
   (req: Request, res: Response) => {
-    // Allow DRAFT -> TESTING manually, or RETURNED_FOR_CORRECTION -> TESTING
-    const testCase = testCaseStore.findById(req.params.id);
-    if (!testCase) return res.status(404).json({ success: false, error: 'Test case not found' });
-
-    const user = (req as any).user || {id: 'sys-tech', role: 'Technician'};
-
-    if (user.role === 'Technician' && testCase.technicianId !== user.id) {
-      return res.status(403).json({ success: false, error: 'Forbidden' });
+    try {
+      const testCase = WorkflowService.startTesting(req.params.id, req.user!.id, req.user!.role);
+      res.json({ success: true, data: testCase });
+    } catch (err: any) {
+      res.status(err.status || 400).json({ success: false, error: err.message });
     }
-
-    if (testCase.status !== 'DRAFT' && testCase.status !== 'RETURNED_FOR_CORRECTION') {
-      return res.status(400).json({ success: false, error: 'Invalid start testing condition' });
-    }
-
-    const previousState = testCase.status;
-    testCase.status = 'TESTING';
-    testCase.updatedAt = new Date().toISOString();
-    testCaseStore.saveItem(testCase);
-
-    AuditService.recordEvent({
-      testCaseId: testCase.id,
-      actorId: user.id,
-      actorRole: user.role,
-      action: 'START_TESTING',
-      previousState,
-      newState: 'TESTING'
-    });
-
-    res.json({ success: true, data: testCase });
   }
 );
 

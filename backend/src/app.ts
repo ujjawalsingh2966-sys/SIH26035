@@ -5,7 +5,7 @@ import { config } from './config/env';
 import { errorHandler } from './middlewares/errorHandler';
 import healthRoutes from './routes/health.routes';
 import authRoutes from './routes/auth.routes';
-import { authenticate } from './middlewares/authResolver';
+import { authenticate, requireRole } from './middlewares/authResolver';
 
 import { manufacturerRoutes } from './routes/manufacturerRoutes';
 import { instrumentRoutes } from './routes/instrumentRoutes';
@@ -27,13 +27,14 @@ app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
 
 // Protected Domain Routes
-app.use('/api/v1/manufacturers', authenticate, manufacturerRoutes);
-app.use('/api/v1/instruments', authenticate, instrumentRoutes);
-app.use('/api/v1/test-cases', authenticate, testCaseRoutes);
-app.use('/api/v1/observations', authenticate, observationRoutes);
-app.use('/api/v1/evidence', authenticate, evidenceRoutes);
-app.use('/api/v1/reports', authenticate, reportRoutes);
-app.use('/api/v1/repository', authenticate, repositoryRoutes);
+const laboratoryAccess = [authenticate, requireRole(['Technician', 'Reviewer', 'Administrator'])];
+app.use('/api/v1/manufacturers', ...laboratoryAccess, manufacturerRoutes);
+app.use('/api/v1/instruments', ...laboratoryAccess, instrumentRoutes);
+app.use('/api/v1/test-cases', ...laboratoryAccess, testCaseRoutes);
+app.use('/api/v1/observations', ...laboratoryAccess, observationRoutes);
+app.use('/api/v1/evidence', ...laboratoryAccess, evidenceRoutes);
+app.use('/api/v1/reports', ...laboratoryAccess, reportRoutes);
+app.use('/api/v1/repository', ...laboratoryAccess, repositoryRoutes);
 
 // 404 Handler
 app.use((req, res, next) => {

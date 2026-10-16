@@ -16,6 +16,8 @@ import {
   Calendar
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { canCreateInstrument } from '@/lib/laboratory'
+import { useDashboardSession } from '@/lib/dashboardSession'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000'
 
@@ -48,6 +50,7 @@ interface TestCase {
 }
 
 export default function DashboardPage() {
+  const canCreate = canCreateInstrument(useDashboardSession())
   const [instruments, setInstruments] = useState<Instrument[]>([])
   const [testCases, setTestCases] = useState<TestCase[]>([])
   const [loading, setLoading] = useState(true)
@@ -84,8 +87,8 @@ export default function DashboardPage() {
   // Calculate dashboard stats
   const stats = {
     totalInstruments: instruments.length,
-    activeTests: testCases.filter(tc => tc.status === 'IN_PROGRESS').length,
-    pendingReview: testCases.filter(tc => tc.status === 'SUBMITTED_FOR_REVIEW').length,
+    activeTests: testCases.filter(tc => tc.status === 'TESTING').length,
+    pendingReview: testCases.filter(tc => ['READY_FOR_REVIEW', 'UNDER_REVIEW'].includes(tc.status)).length,
     approved: testCases.filter(tc => tc.status === 'APPROVED').length,
     instrumentsWithTests: new Set(testCases.map(tc => tc.instrumentId)).size
   }
@@ -101,13 +104,13 @@ export default function DashboardPage() {
     const statusStyles: Record<string, string> = {
       'DRAFT': 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
       'NOT STARTED': 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-      'IN_PROGRESS': 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
-      'SUBMITTED_FOR_REVIEW': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+      'TESTING': 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+      'READY_FOR_REVIEW': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
       'UNDER_REVIEW': 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
       'APPROVED': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
       'COMPLETE': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
       'NOT APPLICABLE': 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
-      'REJECTED': 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+      'RETURNED_FOR_CORRECTION': 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
     }
 
     const style = statusStyles[status] || statusStyles['DRAFT']
@@ -152,13 +155,13 @@ export default function DashboardPage() {
               className="pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all w-full md:w-64"
             />
           </div>
-          <Link
+          {canCreate && <Link
             href="/instruments/new"
             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm transition-all shadow-lg shadow-indigo-600/20 hover:shadow-xl hover:shadow-indigo-600/30"
           >
             <PlusCircle className="w-4 h-4" />
             New Instrument
-          </Link>
+          </Link>}
         </div>
       </div>
 
@@ -244,13 +247,13 @@ export default function DashboardPage() {
                   </div>
                   <h3 className="text-lg font-medium text-slate-900 dark:text-white">No test cases found</h3>
                   <p className="text-slate-500 dark:text-slate-400 mt-1">Start a new verification or wait for tests to be created</p>
-                  <Link
+                  {canCreate && <Link
                     href="/instruments"
                     className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
                   >
                     <PlusCircle className="w-4 h-4" />
                     Register Instrument
-                  </Link>
+                  </Link>}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -320,13 +323,13 @@ export default function DashboardPage() {
                   <Scale className="w-6 h-6 text-slate-400" />
                 </div>
                 <p className="text-slate-500 dark:text-slate-400 text-sm">No instruments registered yet</p>
-                <Link
+                {canCreate && <Link
                   href="/instruments/new"
                   className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
                 >
                   <PlusCircle className="w-4 h-4" />
                   Register Instrument
-                </Link>
+                </Link>}
               </div>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-slate-700">

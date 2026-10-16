@@ -1,7 +1,7 @@
 import { EvidenceRecord } from '../types/evidence';
 import { JsonStore } from '../repositories/JsonStore';
 
-const evidenceStore = new JsonStore<EvidenceRecord>('evidence.json');
+export const evidenceStore = new JsonStore<EvidenceRecord>('evidence.json');
 
 export class EvidenceService {
   public static addEvidence(

@@ -1,22 +1,41 @@
 import { testCaseStore, observationStore } from '../repositories';
-import { TestCase, TestCaseStatus } from '../types/domain';
+import { TestCase } from '../types/domain';
 import { AuditService } from './AuditService';
+import { touchTestCase } from './TestCaseRevision';
+
+class WorkflowError extends Error {
+  constructor(message: string, public status = 400) { super(message); }
+}
 
 export class WorkflowService {
+  static startTesting(testCaseId: string, actorId: string, actorRole: string): TestCase {
+    if (actorRole !== 'Technician') throw new WorkflowError('Unauthorized', 403);
+    const testCase = testCaseStore.findById(testCaseId);
+    if (!testCase) throw new WorkflowError('TestCase not found', 404);
+    if (testCase.technicianId !== actorId) throw new WorkflowError('Only the assigned Technician can resume this test', 403);
+    if (testCase.status !== 'DRAFT' && testCase.status !== 'RETURNED_FOR_CORRECTION') {
+      throw new WorkflowError('Invalid start testing condition', 409);
+    }
+    const previousState = testCase.status;
+    testCase.status = 'TESTING';
+    touchTestCase(testCase);
+    AuditService.recordEvent({ testCaseId, actorId, actorRole, action: 'START_TESTING', previousState, newState: 'TESTING' });
+    return testCase;
+  }
   
   static submitForReview(testCaseId: string, actorId: string, actorRole: string): TestCase {
     // Technician submits for review
-    if (actorRole !== 'Technician') throw new Error('Unauthorized');
+    if (actorRole !== 'Technician') throw new WorkflowError('Unauthorized', 403);
     
     const testCase = testCaseStore.findById(testCaseId);
-    if (!testCase) throw new Error('TestCase not found');
+    if (!testCase) throw new WorkflowError('TestCase not found', 404);
     
-    if (testCase.status !== 'TESTING' && testCase.status !== 'RETURNED_FOR_CORRECTION') {
-      throw new Error(`Invalid transition from ${testCase.status} to READY_FOR_REVIEW`);
+    if (testCase.status !== 'TESTING') {
+      throw new WorkflowError(`Invalid transition from ${testCase.status} to READY_FOR_REVIEW`, 409);
     }
 
     if (testCase.technicianId !== actorId) {
-       throw new Error('Only the assigned Technician can submit this test');
+       throw new WorkflowError('Only the assigned Technician can submit this test', 403);
     }
 
     // Evaluation completeness gate: at least one observation must have been recorded,
@@ -35,9 +54,8 @@ export class WorkflowService {
 
     const previousState = testCase.status;
     testCase.status = 'READY_FOR_REVIEW';
-    testCase.updatedAt = new Date().toISOString();
     
-    testCaseStore.saveItem(testCase);
+    touchTestCase(testCase);
     
     AuditService.recordEvent({
       testCaseId: testCase.id,
@@ -52,26 +70,25 @@ export class WorkflowService {
   }
 
   static startReview(testCaseId: string, actorId: string, actorRole: string): TestCase {
-    if (actorRole !== 'Reviewer' && actorRole !== 'Administrator') throw new Error('Unauthorized');
+    if (actorRole !== 'Reviewer' && actorRole !== 'Administrator') throw new WorkflowError('Unauthorized', 403);
     
     const testCase = testCaseStore.findById(testCaseId);
-    if (!testCase) throw new Error('TestCase not found');
+    if (!testCase) throw new WorkflowError('TestCase not found', 404);
     
     if (testCase.status !== 'READY_FOR_REVIEW') {
-      throw new Error(`Invalid transition from ${testCase.status} to UNDER_REVIEW`);
+      throw new WorkflowError(`Invalid transition from ${testCase.status} to UNDER_REVIEW`, 409);
     }
 
     // Negative checking: Tech cannot approve own test. A Reviewer who IS the Tech of this test shouldn't approve.
     if (testCase.technicianId === actorId) {
-      throw new Error('Reviewer cannot review their own test case');
+      throw new WorkflowError('Reviewer cannot review their own test case', 403);
     }
 
     const previousState = testCase.status;
     testCase.status = 'UNDER_REVIEW';
     testCase.reviewerId = actorId;
-    testCase.updatedAt = new Date().toISOString();
     
-    testCaseStore.saveItem(testCase);
+    touchTestCase(testCase);
     
     AuditService.recordEvent({
       testCaseId: testCase.id,
@@ -86,26 +103,27 @@ export class WorkflowService {
   }
 
   static returnForCorrection(testCaseId: string, actorId: string, actorRole: string, reason: string): TestCase {
-    if (actorRole !== 'Reviewer' && actorRole !== 'Administrator') throw new Error('Unauthorized');
-    if (!reason || reason.trim() === '') throw new Error('Reason required for return');
+    if (actorRole !== 'Reviewer' && actorRole !== 'Administrator') throw new WorkflowError('Unauthorized', 403);
+    if (typeof reason !== 'string' || reason.trim() === '') throw new Error('Reason required for return');
+    reason = reason.trim();
 
     const testCase = testCaseStore.findById(testCaseId);
-    if (!testCase) throw new Error('TestCase not found');
+    if (!testCase) throw new WorkflowError('TestCase not found', 404);
     
     if (testCase.status !== 'UNDER_REVIEW') {
-      throw new Error(`Invalid transition from ${testCase.status} to RETURNED_FOR_CORRECTION`);
+      throw new WorkflowError(`Invalid transition from ${testCase.status} to RETURNED_FOR_CORRECTION`, 409);
     }
 
+    if (testCase.technicianId === actorId) throw new WorkflowError('Reviewer cannot review their own test case', 403);
     if (testCase.reviewerId !== actorId) {
-      throw new Error('Only the assigned Reviewer can return this test case');
+      throw new WorkflowError('Only the assigned Reviewer can return this test case', 403);
     }
     
     const previousState = testCase.status;
     testCase.status = 'RETURNED_FOR_CORRECTION';
     testCase.reviewNotes = reason;
-    testCase.updatedAt = new Date().toISOString();
     
-    testCaseStore.saveItem(testCase);
+    touchTestCase(testCase);
     
     AuditService.recordEvent({
       testCaseId: testCase.id,
@@ -121,25 +139,25 @@ export class WorkflowService {
   }
 
   static approve(testCaseId: string, actorId: string, actorRole: string): TestCase {
-    if (actorRole !== 'Reviewer' && actorRole !== 'Administrator') throw new Error('Unauthorized');
+    if (actorRole !== 'Reviewer' && actorRole !== 'Administrator') throw new WorkflowError('Unauthorized', 403);
     
     const testCase = testCaseStore.findById(testCaseId);
-    if (!testCase) throw new Error('TestCase not found');
+    if (!testCase) throw new WorkflowError('TestCase not found', 404);
     
     if (testCase.status !== 'UNDER_REVIEW') {
-      throw new Error(`Invalid transition from ${testCase.status} to APPROVED`);
+      throw new WorkflowError(`Invalid transition from ${testCase.status} to APPROVED`, 409);
     }
 
+    if (testCase.technicianId === actorId) throw new WorkflowError('Reviewer cannot review their own test case', 403);
     if (testCase.reviewerId !== actorId) {
-      throw new Error('Only the assigned Reviewer can approve this test case');
+      throw new WorkflowError('Only the assigned Reviewer can approve this test case', 403);
     }
     
     const previousState = testCase.status;
     testCase.status = 'APPROVED';
     testCase.approvalDate = new Date().toISOString();
-    testCase.updatedAt = new Date().toISOString();
     
-    testCaseStore.saveItem(testCase);
+    touchTestCase(testCase);
     
     AuditService.recordEvent({
       testCaseId: testCase.id,

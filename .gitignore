@@ -5,6 +5,9 @@ coverage/
 .next/
 out/
 .env
+.env*
+!.env.example
+*.tsbuildinfo
 
 # Next.js
 .next/
@@ -13,10 +16,17 @@ out/
 # Output
 *.log
 data/*.json
+/data/*
+!/data/.gitkeep
 
 # IDE
 .idea/
 
 # Playwright
 .playwright-cli/
+.next-browser-review/
+.next-contrast-review/
+.next-business-accounts/
+.next-snapshot-review/
+artifacts/browser-review/
 

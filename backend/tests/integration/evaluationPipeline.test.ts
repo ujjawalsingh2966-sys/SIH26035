@@ -76,7 +76,7 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
     await request(server)
       .put(`/api/v1/test-cases/${testCaseId}/status`)
       .set('Authorization', `Bearer ${technicianToken}`)
-      .send({ status: 'TESTING' })
+      .send({ status: 'TESTING', expectedRevision: createRes.body.data.revision ?? 0 })
       .expect(200);
 
     return testCaseId;
@@ -128,6 +128,7 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
     const submitRes = await request(server)
       .post(`/api/v1/test-cases/${testCaseId}/workflow/submit`)
       .set('Authorization', `Bearer ${technicianToken}`)
+      .send({ expectedRevision: testCaseStore.findById(testCaseId)!.revision ?? 0 })
       .expect(200);
     expect(submitRes.body.data.status).toBe('READY_FOR_REVIEW');
   });
@@ -177,6 +178,7 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
     const submitRes = await request(server)
       .post(`/api/v1/test-cases/${testCaseId}/workflow/submit`)
       .set('Authorization', `Bearer ${technicianToken}`)
+      .send({ expectedRevision: testCaseStore.findById(testCaseId)!.revision ?? 0 })
       .expect(400);
     expect(submitRes.body.error).toContain('no observations have been recorded');
   });
@@ -201,6 +203,7 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
     const submitRes = await request(server)
       .post(`/api/v1/test-cases/${testCaseId}/workflow/submit`)
       .set('Authorization', `Bearer ${technicianToken}`)
+      .send({ expectedRevision: testCaseStore.findById(testCaseId)!.revision ?? 0 })
       .expect(400);
     expect(submitRes.body.error).toContain('not completed evaluation');
   });
@@ -218,6 +221,7 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
     await request(server)
       .post(`/api/v1/test-cases/${testCaseId}/workflow/submit`)
       .set('Authorization', `Bearer ${technicianToken}`)
+      .send({ expectedRevision: testCaseStore.findById(testCaseId)!.revision ?? 0 })
       .expect(200);
 
     const reviewerToken = jwt.sign({ id: 'rev-eval-1', role: 'Reviewer', email: 'rev-eval@example.com' }, config.jwtSecret);
@@ -225,11 +229,13 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
     await request(server)
       .post(`/api/v1/test-cases/${testCaseId}/workflow/start-review`)
       .set('Authorization', `Bearer ${reviewerToken}`)
+      .send({ expectedRevision: testCaseStore.findById(testCaseId)!.revision ?? 0 })
       .expect(200);
 
     await request(server)
       .post(`/api/v1/test-cases/${testCaseId}/workflow/approve`)
       .set('Authorization', `Bearer ${reviewerToken}`)
+      .send({ expectedRevision: testCaseStore.findById(testCaseId)!.revision ?? 0 })
       .expect(200);
 
     // The report's compliance summary now reflects the real, persisted Compliance Engine

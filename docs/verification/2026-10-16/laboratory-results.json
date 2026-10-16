@@ -1,0 +1,200 @@
+{
+  "verifiedOn": "2026-10-16",
+  "timezone": "Asia/Calcutta",
+  "browser": "Chromium 156.0.8078.4",
+  "playwright": "1.64.1",
+  "frontend": "http://127.0.0.1:3013",
+  "backend": "http://127.0.0.1:4004",
+  "counts": {
+    "PASS": 36,
+    "FAIL": 0,
+    "BLOCKED": 1
+  },
+  "scenarios": [
+    {
+      "name": "Technician signs in through the login form",
+      "status": "PASS",
+      "milliseconds": 481
+    },
+    {
+      "name": "Queue loading indicator and empty state use a real delayed request",
+      "status": "PASS",
+      "milliseconds": 1754
+    },
+    {
+      "name": "Instrument form values and placeholders readable in both themes",
+      "status": "PASS",
+      "milliseconds": 1533
+    },
+    {
+      "name": "Metadata fields keep identifiable labels after entering values",
+      "status": "PASS",
+      "milliseconds": 219
+    },
+    {
+      "name": "Dark-theme page headings and checkbox labels remain readable",
+      "status": "PASS",
+      "milliseconds": 1281
+    },
+    {
+      "name": "Create an isolated instrument and draft test case via UI",
+      "status": "PASS",
+      "milliseconds": 497
+    },
+    {
+      "name": "DRAFT blocks observation input in UI and real backend",
+      "status": "PASS",
+      "milliseconds": 25
+    },
+    {
+      "name": "Start Testing duplicate clicks produce one transition",
+      "status": "PASS",
+      "milliseconds": 82
+    },
+    {
+      "name": "Save laboratory conditions through UI",
+      "status": "PASS",
+      "milliseconds": 156
+    },
+    {
+      "name": "Submission validation shows backend failure for empty observations",
+      "status": "PASS",
+      "milliseconds": 392
+    },
+    {
+      "name": "Invalid observation shows saved-evaluation API error and preserves data",
+      "status": "PASS",
+      "milliseconds": 385
+    },
+    {
+      "name": "Valid observation persists exact backend evaluation with duplicate-click protection",
+      "status": "PASS",
+      "milliseconds": 357
+    },
+    {
+      "name": "Reload preserves laboratory conditions, readings and evaluation",
+      "status": "PASS",
+      "milliseconds": 215
+    },
+    {
+      "name": "Available evidence renders and downloads from real persisted evidence",
+      "status": "PASS",
+      "milliseconds": 1205
+    },
+    {
+      "name": "Submit for review locks technician editing and sends one request",
+      "status": "PASS",
+      "milliseconds": 171
+    },
+    {
+      "name": "Second technician cannot view or mutate the first technician record",
+      "status": "PASS",
+      "milliseconds": 760
+    },
+    {
+      "name": "Reviewer finds submitted record and sees instrument, conditions, evaluations, evidence",
+      "status": "PASS",
+      "milliseconds": 1941
+    },
+    {
+      "name": "Reviewer claims record and return requires a correction reason",
+      "status": "PASS",
+      "milliseconds": 124
+    },
+    {
+      "name": "Return for Correction persists reason once under repeated clicks",
+      "status": "PASS",
+      "milliseconds": 239
+    },
+    {
+      "name": "Owning technician sees feedback and must Resume Testing before correction",
+      "status": "PASS",
+      "milliseconds": 268
+    },
+    {
+      "name": "Technician correction recalculates on backend and retains original audit snapshot",
+      "status": "PASS",
+      "milliseconds": 668
+    },
+    {
+      "name": "Supported observation deletion retains its saved evaluation in audit history",
+      "status": "PASS",
+      "milliseconds": 227
+    },
+    {
+      "name": "Resubmission returns corrected record to READY_FOR_REVIEW",
+      "status": "PASS",
+      "milliseconds": 70
+    },
+    {
+      "name": "Stale reviewer tab gets clear 409 feedback across correction cycles",
+      "status": "PASS",
+      "milliseconds": 172
+    },
+    {
+      "name": "Reviewer starts new review and approves corrected record once",
+      "status": "PASS",
+      "milliseconds": 2656
+    },
+    {
+      "name": "Reload retains APPROVED state, technician locks, feedback and full review history",
+      "status": "PASS",
+      "milliseconds": 1105
+    },
+    {
+      "name": "Reviewer navigation restricts technician creation actions",
+      "status": "PASS",
+      "milliseconds": 220
+    },
+    {
+      "name": "Reports navigation opens an available report screen",
+      "status": "PASS",
+      "milliseconds": 1414
+    },
+    {
+      "name": "Download existing approved PDF API through browser and compare persisted values",
+      "status": "PASS",
+      "milliseconds": 2816
+    },
+    {
+      "name": "Second technician cannot access the first technician approved report",
+      "status": "PASS",
+      "milliseconds": 36
+    },
+    {
+      "name": "Offline request failure shows feedback and successful retry",
+      "status": "PASS",
+      "milliseconds": 1858
+    },
+    {
+      "name": "Repeated instrument creation clicks do not create duplicate mutations",
+      "status": "PASS",
+      "milliseconds": 961
+    },
+    {
+      "name": "Administrator can claim and approve through the permitted browser workflow",
+      "status": "PASS",
+      "milliseconds": 3754
+    },
+    {
+      "name": "Logout clears session and protected navigation returns to login",
+      "status": "PASS",
+      "milliseconds": 222
+    },
+    {
+      "name": "Browser console contains no application runtime errors",
+      "status": "PASS",
+      "milliseconds": 0
+    },
+    {
+      "name": "All browser application traffic stayed local and original project records were preserved",
+      "status": "PASS",
+      "milliseconds": 1
+    },
+    {
+      "name": "Business application form",
+      "status": "BLOCKED",
+      "reason": "No Business application route/form is implemented."
+    }
+  ]
+}

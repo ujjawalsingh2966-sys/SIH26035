@@ -1,0 +1,100 @@
+{
+  "verifiedOn": "2026-10-16",
+  "timezone": "Asia/Calcutta",
+  "browser": "156.0.8078.4",
+  "playwright": "1.64.1",
+  "frontend": "http://127.0.0.1:3013",
+  "backend": "http://127.0.0.1:4004",
+  "counts": {
+    "PASS": 9,
+    "FAIL": 0,
+    "BLOCKED": 0
+  },
+  "scenarios": [
+    {
+      "name": "Immediate rapid clicks and direct form submissions create one instrument and case",
+      "status": "PASS",
+      "counts": {
+        "instrumentRequests": 1,
+        "testCaseRequests": 1,
+        "instruments": 1,
+        "testCases": 1
+      }
+    },
+    {
+      "name": "Enter key combined with clicking cannot overlap while test case response is slow",
+      "status": "PASS",
+      "counts": {
+        "instrumentRequests": 1,
+        "testCaseRequests": 1,
+        "instruments": 1,
+        "testCases": 1
+      }
+    },
+    {
+      "name": "Slow real instrument response keeps controls pending and creates no duplicates",
+      "status": "PASS",
+      "counts": {
+        "instrumentRequests": 1,
+        "testCaseRequests": 1,
+        "instruments": 1,
+        "testCases": 1
+      }
+    },
+    {
+      "name": "Confirmed backend rejection preserves values and allows a successful retry",
+      "status": "PASS",
+      "counts": {
+        "instrumentRequests": 2,
+        "testCaseRequests": 1,
+        "instruments": 1,
+        "testCases": 1
+      }
+    },
+    {
+      "name": "Saved instrument is reused when confirmed downstream failure is retried",
+      "status": "PASS",
+      "counts": {
+        "instrumentRequests": 1,
+        "testCaseRequests": 2,
+        "instruments": 1,
+        "testCases": 1
+      }
+    },
+    {
+      "name": "Another legitimate instrument can be created after completing the previous form",
+      "status": "PASS",
+      "counts": {}
+    },
+    {
+      "name": "Ambiguous instruments response after real save does not trigger an unsafe retry",
+      "status": "PASS",
+      "counts": {
+        "instrumentRequests": 1,
+        "testCaseRequests": 0,
+        "instruments": 1,
+        "testCases": 0
+      }
+    },
+    {
+      "name": "Ambiguous test-cases response after real save does not trigger an unsafe retry",
+      "status": "PASS",
+      "counts": {
+        "instrumentRequests": 1,
+        "testCaseRequests": 1,
+        "instruments": 1,
+        "testCases": 1
+      }
+    },
+    {
+      "name": "Existing classification validation remains intact and does not lock the form",
+      "status": "PASS",
+      "counts": {
+        "instrumentRequests": 0,
+        "testCaseRequests": 0,
+        "instruments": 0,
+        "testCases": 0
+      }
+    }
+  ]
+}

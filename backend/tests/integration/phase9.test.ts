@@ -92,6 +92,8 @@ describe('Phase 9 Workflow and RBAC Integration', () => {
       expect(returned.status).toBe('RETURNED_FOR_CORRECTION');
       expect(returned.reviewNotes).toBe('Missing observations');
       
+      // Explicitly resume testing before resubmission.
+      WorkflowService.startTesting(tc.id, 'tech-2', 'Technician');
       // Resubmit
       const resubmitted = WorkflowService.submitForReview(tc.id, 'tech-2', 'Technician');
       expect(resubmitted.status).toBe('READY_FOR_REVIEW');

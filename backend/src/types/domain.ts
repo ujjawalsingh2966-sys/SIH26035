@@ -55,6 +55,7 @@ export interface TestCase {
   instrumentId: string;
   technicianId: string;
   status: TestCaseStatus;
+  revision?: number; // Legacy records start at revision 0; advances on every mutation.
   
   // Phase 9: Workflow and Audit extensions
   reviewerId?: string;

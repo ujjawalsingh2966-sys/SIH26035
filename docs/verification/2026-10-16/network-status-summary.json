@@ -1,0 +1,390 @@
+{
+  "note": "Response-status counts only. No request bodies, headers, tokens, account details, query strings or record snapshots. Synthetic numeric route IDs are replaced.",
+  "responses": [
+    {
+      "suite": "laboratory",
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "status": 200,
+      "count": 4
+    },
+    {
+      "suite": "laboratory",
+      "method": "GET",
+      "path": "/api/v1/instruments",
+      "status": 200,
+      "count": 4
+    },
+    {
+      "suite": "laboratory",
+      "method": "GET",
+      "path": "/api/v1/test-cases",
+      "status": 200,
+      "count": 9
+    },
+    {
+      "suite": "laboratory",
+      "method": "POST",
+      "path": "/api/v1/instruments",
+      "status": 201,
+      "count": 3
+    },
+    {
+      "suite": "laboratory",
+      "method": "POST",
+      "path": "/api/v1/test-cases",
+      "status": 201,
+      "count": 3
+    },
+    {
+      "suite": "laboratory",
+      "method": "GET",
+      "path": "/api/v1/repository/records/:synthetic-id",
+      "status": 200,
+      "count": 30
+    },
+    {
+      "suite": "laboratory",
+      "method": "GET",
+      "path": "/api/v1/observations/:synthetic-id",
+      "status": 200,
+      "count": 30
+    },
+    {
+      "suite": "laboratory",
+      "method": "POST",
+      "path": "/api/v1/observations",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "laboratory",
+      "method": "PUT",
+      "path": "/api/v1/test-cases/:synthetic-id/status",
+      "status": 200,
+      "count": 3
+    },
+    {
+      "suite": "laboratory",
+      "method": "PUT",
+      "path": "/api/v1/test-cases/:synthetic-id/laboratory-conditions",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "suite": "laboratory",
+      "method": "POST",
+      "path": "/api/v1/test-cases/:synthetic-id/workflow/submit",
+      "status": 400,
+      "count": 1
+    },
+    {
+      "suite": "laboratory",
+      "method": "POST",
+      "path": "/api/v1/observations",
+      "status": 400,
+      "count": 1
+    },
+    {
+      "suite": "laboratory",
+      "method": "POST",
+      "path": "/api/v1/observations",
+      "status": 201,
+      "count": 3
+    },
+    {
+      "suite": "laboratory",
+      "method": "POST",
+      "path": "/api/v1/evidence",
+      "status": 201,
+      "count": 1
+    },
+    {
+      "suite": "laboratory",
+      "method": "POST",
+      "path": "/api/v1/test-cases/:synthetic-id/workflow/submit",
+      "status": 200,
+      "count": 3
+    },
+    {
+      "suite": "laboratory",
+      "method": "GET",
+      "path": "/api/v1/repository/records/:synthetic-id",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "laboratory",
+      "method": "GET",
+      "path": "/api/v1/observations/:synthetic-id",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "laboratory",
+      "method": "PUT",
+      "path": "/api/v1/observations/:synthetic-id",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "laboratory",
+      "method": "POST",
+      "path": "/api/v1/test-cases/:synthetic-id/workflow/start-review",
+      "status": 200,
+      "count": 3
+    },
+    {
+      "suite": "laboratory",
+      "method": "POST",
+      "path": "/api/v1/test-cases/:synthetic-id/workflow/return",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "suite": "laboratory",
+      "method": "PUT",
+      "path": "/api/v1/observations/:synthetic-id",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "suite": "laboratory",
+      "method": "DELETE",
+      "path": "/api/v1/observations/:synthetic-id",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "suite": "laboratory",
+      "method": "POST",
+      "path": "/api/v1/test-cases/:synthetic-id/workflow/start-review",
+      "status": 409,
+      "count": 1
+    },
+    {
+      "suite": "laboratory",
+      "method": "POST",
+      "path": "/api/v1/test-cases/:synthetic-id/workflow/approve",
+      "status": 200,
+      "count": 2
+    },
+    {
+      "suite": "laboratory",
+      "method": "DELETE",
+      "path": "/api/v1/observations/:synthetic-id",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "laboratory",
+      "method": "GET",
+      "path": "/api/v1/repository/search",
+      "status": 200,
+      "count": 2
+    },
+    {
+      "suite": "laboratory",
+      "method": "GET",
+      "path": "/api/v1/reports/:synthetic-id/pdf",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "suite": "laboratory",
+      "method": "GET",
+      "path": "/api/v1/reports/:synthetic-id/data",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "laboratory",
+      "method": "GET",
+      "path": "/api/v1/reports/:synthetic-id/html",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "laboratory",
+      "method": "GET",
+      "path": "/api/v1/reports/:synthetic-id/pdf",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "business-accounts",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "status": 400,
+      "count": 1
+    },
+    {
+      "suite": "business-accounts",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "status": 201,
+      "count": 2
+    },
+    {
+      "suite": "business-accounts",
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "status": 200,
+      "count": 2
+    },
+    {
+      "suite": "business-accounts",
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "status": 200,
+      "count": 7
+    },
+    {
+      "suite": "business-accounts",
+      "method": "GET",
+      "path": "/api/v1/manufacturers",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "business-accounts",
+      "method": "GET",
+      "path": "/api/v1/instruments",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "business-accounts",
+      "method": "POST",
+      "path": "/api/v1/instruments",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "business-accounts",
+      "method": "GET",
+      "path": "/api/v1/test-cases",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "business-accounts",
+      "method": "POST",
+      "path": "/api/v1/test-cases",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "business-accounts",
+      "method": "POST",
+      "path": "/api/v1/observations",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "business-accounts",
+      "method": "POST",
+      "path": "/api/v1/evidence",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "business-accounts",
+      "method": "GET",
+      "path": "/api/v1/repository/search",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "business-accounts",
+      "method": "GET",
+      "path": "/api/v1/reports/synthetic/data",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "business-accounts",
+      "method": "GET",
+      "path": "/api/v1/reports/synthetic/html",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "business-accounts",
+      "method": "GET",
+      "path": "/api/v1/reports/synthetic/pdf",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "business-accounts",
+      "method": "POST",
+      "path": "/api/v1/test-cases/synthetic/workflow/approve",
+      "status": 403,
+      "count": 1
+    },
+    {
+      "suite": "business-accounts",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "status": 403,
+      "count": 5
+    },
+    {
+      "suite": "business-accounts",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "status": 409,
+      "count": 5
+    },
+    {
+      "suite": "business-accounts",
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "status": 401,
+      "count": 1
+    },
+    {
+      "suite": "business-accounts",
+      "method": "GET",
+      "path": "/applications",
+      "status": 404,
+      "count": 1
+    },
+    {
+      "suite": "business-accounts",
+      "method": "GET",
+      "path": "/api/v1/verification/applications",
+      "status": 404,
+      "count": 1
+    },
+    {
+      "suite": "instrument-submission",
+      "method": "GET",
+      "path": "/api/v1/instruments",
+      "status": 201,
+      "count": 8
+    },
+    {
+      "suite": "instrument-submission",
+      "method": "GET",
+      "path": "/api/v1/test-cases",
+      "status": 201,
+      "count": 7
+    },
+    {
+      "suite": "instrument-submission",
+      "method": "GET",
+      "path": "/api/v1/instruments",
+      "status": 400,
+      "count": 1
+    },
+    {
+      "suite": "instrument-submission",
+      "method": "GET",
+      "path": "/api/v1/test-cases",
+      "status": 404,
+      "count": 1
+    }
+  ]
+}

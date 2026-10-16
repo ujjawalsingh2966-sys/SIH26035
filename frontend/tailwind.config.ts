@@ -3,6 +3,7 @@ import type { Config } from 'tailwindcss'
 const config: Config = {
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
@@ -103,9 +104,9 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'ui-sans-serif', 'sans-serif'],
+        sans: ['Arial', 'Helvetica', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace'],
-        display: ['Inter', 'system-ui', 'ui-sans-serif', 'sans-serif'],
+        display: ['Arial', 'Helvetica', 'sans-serif'],
       },
       fontSize: {
         'xxs': ['0.65rem', { lineHeight: '1rem', letterSpacing: '0.02em' }],

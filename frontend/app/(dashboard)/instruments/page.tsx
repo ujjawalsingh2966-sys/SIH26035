@@ -15,6 +15,8 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { canCreateInstrument } from '@/lib/laboratory'
+import { useDashboardSession } from '@/lib/dashboardSession'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000'
 
@@ -39,6 +41,7 @@ interface Instrument {
 }
 
 export default function InstrumentsPage() {
+  const canCreate = canCreateInstrument(useDashboardSession())
   const [instruments, setInstruments] = useState<Instrument[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -108,13 +111,13 @@ export default function InstrumentsPage() {
             {filteredInstruments.length} instrument{filteredInstruments.length !== 1 ? 's' : ''} registered
           </p>
         </div>
-        <Link
+        {canCreate && <Link
           href="/instruments/new"
           className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm transition-all shadow-lg shadow-indigo-600/20"
         >
           <PlusCircle className="w-4 h-4" />
           Register Instrument
-        </Link>
+        </Link>}
       </div>
 
       {/* Filters */}
@@ -277,10 +280,10 @@ export default function InstrumentsPage() {
                 <Download className="w-3.5 h-3.5" />
                 Export
               </button>
-              <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors">
+              {canCreate && <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors">
                 <Upload className="w-3.5 h-3.5" />
                 Import
-              </button>
+              </button>}
             </div>
           </div>
         )}

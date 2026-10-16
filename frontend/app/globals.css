@@ -40,9 +40,9 @@
     --radius-md: 0.375rem;
     --radius-lg: 0.5rem;
     --radius-xl: 0.75rem;
-    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-sans: Arial, Helvetica, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
-    --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-display: Arial, Helvetica, sans-serif;
     --container-sm: 640px;
     --container-md: 768px;
     --container-lg: 1024px;
@@ -110,13 +110,24 @@
 
   body {
     @apply bg-slate-50 text-slate-900 font-sans antialiased;
-    background-color: var(--color-bg);
+    background-color: #faf5ff;
+    background-image:
+      radial-gradient(circle at 12% 18%, rgba(196, 181, 253, 0.72) 0, rgba(196, 181, 253, 0) 34%),
+      radial-gradient(circle at 86% 14%, rgba(254, 240, 138, 0.78) 0, rgba(254, 240, 138, 0) 32%),
+      radial-gradient(circle at 78% 84%, rgba(216, 180, 254, 0.58) 0, rgba(216, 180, 254, 0) 36%),
+      radial-gradient(circle at 18% 88%, rgba(253, 224, 71, 0.42) 0, rgba(253, 224, 71, 0) 34%),
+      linear-gradient(135deg, #faf5ff 0%, #fffbeb 52%, #f5f3ff 100%);
+    background-attachment: fixed;
     color: var(--color-text);
+    font-family: Arial, Helvetica, sans-serif;
     line-height: 1.6;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display font-semibold text-slate-900;
+    @apply font-display font-bold italic text-slate-900;
+    font-family: Arial, Helvetica, sans-serif;
+    font-style: italic !important;
+    font-weight: 700 !important;
     line-height: 1.25;
   }
 
@@ -150,6 +161,18 @@
 }
 
 @layer components {
+  /* Soft purple-and-yellow mesh shared by auth and dashboard shells. */
+  .mesh-background {
+    background-color: #faf5ff;
+    background-image:
+      radial-gradient(circle at 12% 18%, rgba(196, 181, 253, 0.72) 0, rgba(196, 181, 253, 0) 34%),
+      radial-gradient(circle at 86% 14%, rgba(254, 240, 138, 0.78) 0, rgba(254, 240, 138, 0) 32%),
+      radial-gradient(circle at 78% 84%, rgba(216, 180, 254, 0.58) 0, rgba(216, 180, 254, 0) 36%),
+      radial-gradient(circle at 18% 88%, rgba(253, 224, 71, 0.42) 0, rgba(253, 224, 71, 0) 34%),
+      linear-gradient(135deg, #faf5ff 0%, #fffbeb 52%, #f5f3ff 100%);
+    background-attachment: fixed;
+  }
+
   /* Button Variants */
   .btn {
     @apply inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;

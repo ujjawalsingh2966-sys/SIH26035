@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Scale, Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000'
@@ -35,7 +36,7 @@ export default function LoginPage() {
 
       if (data.success) {
         localStorage.setItem('nawi_token', data.data.token)
-        router.push('/dashboard')
+        router.push(data.data.user.role === 'Business' ? '/account' : '/dashboard')
       } else {
         setError(data.error || 'Login failed. Please check your credentials.')
       }
@@ -47,7 +48,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 flex flex-col">
+    <div className="mesh-background min-h-screen flex flex-col">
       {/* Top decorative bar */}
       <div className="h-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-emerald-600 w-full" />
 
@@ -97,7 +98,10 @@ export default function LoginPage() {
                 {roles.map((role) => (
                   <div
                     key={role.id}
-                    onClick={() => setSelectedRole(role.id)}
+                    onClick={() => {
+                      setSelectedRole(role.id)
+                      setEmail(`${role.id === 'officer' ? 'reviewer' : role.id}@example.com`)
+                    }}
                     className={`
                       flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200
                       ${selectedRole === role.id
@@ -209,6 +213,11 @@ export default function LoginPage() {
                   )}
                 </button>
               </form>
+
+              <div className="mt-6 space-y-2 text-sm text-indigo-700 dark:text-indigo-300">
+                <p><Link href="/business/login" className="underline">Business sign in</Link></p>
+                <p><Link href="/register" className="underline">Create a Business account</Link></p>
+              </div>
 
               <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between text-xs text-slate-500">

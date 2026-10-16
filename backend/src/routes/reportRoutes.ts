@@ -1,11 +1,19 @@
 import { Router, Request, Response } from 'express';
 import { requireRole } from '../middlewares/authResolver';
+import { requireTestCaseAccess } from '../middlewares/testCaseAccess';
 import { ReportService } from '../services/ReportService';
 import { AuditService } from '../services/AuditService';
 
 export const reportRoutes = Router();
 
-reportRoutes.get('/:testCaseId/data', requireRole(['Technician', 'Reviewer', 'Administrator']), (req: Request, res: Response) => {
+// Apply the shared record policy before any representation is generated or audited.
+reportRoutes.use(
+  '/:testCaseId',
+  requireRole(['Technician', 'Reviewer', 'Administrator']),
+  requireTestCaseAccess(req => req.params.testCaseId)
+);
+
+reportRoutes.get('/:testCaseId/data', (req: Request, res: Response) => {
   try {
     const userRole = (req as any).user?.role || 'Technician';
     const data = ReportService.generateReportData(req.params.testCaseId, userRole);
@@ -15,7 +23,7 @@ reportRoutes.get('/:testCaseId/data', requireRole(['Technician', 'Reviewer', 'Ad
   }
 });
 
-reportRoutes.get('/:testCaseId/html', requireRole(['Technician', 'Reviewer', 'Administrator']), (req: Request, res: Response) => {
+reportRoutes.get('/:testCaseId/html', (req: Request, res: Response) => {
   try {
     const userRole = (req as any).user?.role || 'Technician';
     const userId = (req as any).user?.id || 'system';
@@ -37,7 +45,7 @@ reportRoutes.get('/:testCaseId/html', requireRole(['Technician', 'Reviewer', 'Ad
   }
 });
 
-reportRoutes.get('/:testCaseId/pdf', requireRole(['Technician', 'Reviewer', 'Administrator']), (req: Request, res: Response) => {
+reportRoutes.get('/:testCaseId/pdf', (req: Request, res: Response) => {
   try {
     const userRole = (req as any).user?.role || 'Technician';
     const userId = (req as any).user?.id || 'system';

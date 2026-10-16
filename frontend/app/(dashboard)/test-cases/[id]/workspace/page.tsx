@@ -1,254 +1,128 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import {
-  Save,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  Calendar,
-  Thermometer,
-  Droplet,
-  BarChart3,
-  ChevronRight,
-  Plus,
-  Trash2,
-  FileText,
-  Activity,
-  Lock,
- Unlock,
-  Download,
-  Upload,
-  Settings
-} from 'lucide-react'
+import { Save, CheckCircle2, AlertCircle, Thermometer, Plus, Trash2, FileText, Activity, Lock, Scale, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { laboratoryApi, getSession, statusLabel } from '@/lib/laboratory'
+import type { TestCase, Observation, ObservationType, LaboratoryRecord, Session } from '@/lib/laboratory'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000'
-
-export type TestCaseStatus = 'DRAFT' | 'NOT STARTED' | 'IN_PROGRESS' | 'SUBMITTED_FOR_REVIEW' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'COMPLETE' | 'NOT APPLICABLE'
-
-export type ObservationType = 'WEIGHING' | 'ECCENTRICITY' | 'REPEATABILITY' | 'TARE' | 'ZERO_SETTING'
-
-interface TestCase {
-  id: string
-  instrumentId: string
-  technicianId: string
-  status: TestCaseStatus
-  reviewerId?: string
-  reviewNotes?: string
-  approvalDate?: string
-  createdAt: string
-  updatedAt: string
-  laboratoryConditions?: {
-    temperature: string
-    humidity: string
-    pressure: string
-  }
-  testConfiguration: {
-    weighing: string
-    eccentricity: string
-    repeatability: string
-    tare: string
-    zeroSetting: string
-  }
-  isInitialVerification?: boolean
-}
-
-interface Observation {
-  id: string
-  testCaseId: string
-  testType: ObservationType
-  sequence: number
-  load: string
-  indication: string
-  additionalWeights: string
-}
+const emptyObservation = { load: '', indication: '', additionalWeights: '0', zeroError: '0', unit: 'g' }
 
 export default function TestCaseWorkspace({ params }: { params: { id: string } }) {
   const router = useRouter()
   const [testCase, setTestCase] = useState<TestCase | null>(null)
+  const [record, setRecord] = useState<LaboratoryRecord | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [observations, setObservations] = useState<Observation[]>([])
   const [activeTab, setActiveTab] = useState<ObservationType>('WEIGHING')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [submitError, setSubmitError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [showSuccessToast, setShowSuccessToast] = useState(false)
-
-  // Lab conditions form
+  const [busy, setBusy] = useState(false)
+  const inFlight = useRef(false)
+  const [reason, setReason] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [lab, setLab] = useState({ temperature: '', humidity: '', pressure: '' })
-
-  // Observation form
-  const [obsForm, setObsForm] = useState({
-    load: '',
-    indication: '',
-    additionalWeights: '0'
-  })
+  const [obsForm, setObsForm] = useState(emptyObservation)
 
   useEffect(() => {
-    fetchData()
+    if (!showSuccessToast) return
+    const timeout = setTimeout(() => setShowSuccessToast(false), 4000)
+    return () => clearTimeout(timeout)
+  }, [showSuccessToast])
+
+  const fetchData = useCallback(async () => {
+    const [details, rows] = await Promise.all([
+      laboratoryApi<LaboratoryRecord>(`/repository/records/${params.id}`),
+      laboratoryApi<Observation[]>(`/observations/${params.id}`)
+    ])
+    setRecord(details)
+    setTestCase(details.testCase)
+    setObservations(rows)
+    setLab(details.testCase.laboratoryConditions || { temperature: '', humidity: '', pressure: '' })
+    setLoadError('')
   }, [params.id])
 
-  const fetchData = async () => {
+  useEffect(() => {
+    setSession(getSession())
+    setLoading(true)
+    fetchData().catch(error => setLoadError(error.message)).finally(() => setLoading(false))
+  }, [fetchData])
+
+  // A ref closes the double-click window before React renders disabled controls.
+  const mutate = async (operation: () => Promise<unknown>, message: string, afterSuccess?: () => void) => {
+    if (inFlight.current) return
+    inFlight.current = true
+    setBusy(true)
+    setSubmitError('')
+    setShowSuccessToast(false)
     try {
-      const token = localStorage.getItem('nawi_token')
-
-      // Fetch test case
-      const tcRes = await fetch(`${API_BASE_URL}/api/v1/test-cases`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      const tcData = await tcRes.json()
-      const currentTc = tcData.data?.find((t: TestCase) => t.id === params.id)
-
-      setTestCase(currentTc)
-      if (currentTc?.laboratoryConditions) {
-        setLab(currentTc.laboratoryConditions)
+      await operation()
+      afterSuccess?.()
+      setSuccessMessage(message)
+      setShowSuccessToast(true)
+      try { await fetchData() } catch (error) {
+        setLoadError(`Saved, but refresh failed: ${(error as Error).message}`)
       }
-
-      // Fetch observations
-      const obsRes = await fetch(`${API_BASE_URL}/api/v1/observations/${params.id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      const obsData = await obsRes.json()
-      setObservations(obsData.data || [])
-    } catch (e) {
-      console.error('Failed to fetch data:', e)
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Request failed. Please try again.')
     } finally {
-      setLoading(false)
+      inFlight.current = false
+      setBusy(false)
     }
   }
 
-  const saveLabConditions = async () => {
-    const token = localStorage.getItem('nawi_token')
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/test-cases/${params.id}/laboratory-conditions`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(lab)
+  const transition = (action: 'submit' | 'start-review' | 'return' | 'approve' | 'testing') => {
+    if (!testCase || inFlight.current) return
+    if (action === 'return' && !reason.trim()) { setSubmitError('A correction reason is required.'); return }
+    if (action === 'approve' && !confirm('Approve this laboratory record? Further changes will be locked.')) return
+    if (action === 'submit' && !confirm('Submit for review? Observations will become read-only.')) return
+    const endpoint = action === 'testing' ? 'status' : `workflow/${action}`
+    return mutate(async () => {
+      const updated = await laboratoryApi<TestCase>(`/test-cases/${params.id}/${endpoint}`, {
+        method: action === 'testing' ? 'PUT' : 'POST',
+        body: JSON.stringify({ expectedRevision: testCase.revision ?? 0, status: 'TESTING', reason })
       })
-      const result = await res.json()
-
-      if (result.success) {
-        setSuccessMessage('Laboratory conditions saved successfully')
-        setShowSuccessToast(true)
-        setTimeout(() => setShowSuccessToast(false), 3000)
-        // Refresh data
-        const tcRes = await fetch(`${API_BASE_URL}/api/v1/test-cases/${params.id}/workspace`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        const tcData = await tcRes.json()
-        if (tcData.data?.laboratoryConditions) {
-          setLab(tcData.data.laboratoryConditions)
-        }
-      }
-    } catch (e) {
-      setSubmitError('Failed to save laboratory conditions')
-      setTimeout(() => setSubmitError(''), 3000)
-    }
+      setTestCase(updated)
+    }, 'Workflow updated.', () => setReason(''))
   }
 
-  const addObservation = async () => {
-    if (!obsForm.load || !obsForm.indication) {
-      setSubmitError('Load and indication are required fields')
-      setTimeout(() => setSubmitError(''), 3000)
-      return
-    }
+  const saveLabConditions = () => mutate(() => laboratoryApi(`/test-cases/${params.id}/laboratory-conditions`, {
+    method: 'PUT', body: JSON.stringify(lab)
+  }), 'Laboratory conditions saved.')
 
-    try {
-      const typeObs = observations.filter(o => o.testType === activeTab)
-      const seq = typeObs.length + 1
-      const token = localStorage.getItem('nawi_token')
-
-      const res = await fetch(`${API_BASE_URL}/api/v1/observations`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          testCaseId: params.id,
-          testType: activeTab,
-          sequence: seq,
-          load: obsForm.load,
-          indication: obsForm.indication,
-          additionalWeights: obsForm.additionalWeights
-        })
-      })
-      const result = await res.json()
-
-      if (result.success) {
-        setObservations([...observations, result.data])
-        setObsForm({ load: '', indication: '', additionalWeights: '0' })
-        setSuccessMessage('Observation recorded successfully')
-        setShowSuccessToast(true)
-        setTimeout(() => setShowSuccessToast(false), 3000)
-      }
-    } catch (e) {
-      setSubmitError('Failed to record observation')
-      setTimeout(() => setSubmitError(''), 3000)
-    }
+  const addObservation = () => {
+    if (!obsForm.load || !obsForm.indication) { setSubmitError('Load and indication are required.'); return }
+    const sequence = Math.max(0, ...observations.filter(o => o.testType === activeTab).map(o => o.sequence)) + 1
+    return mutate(() => laboratoryApi(editingId ? `/observations/${editingId}` : '/observations', {
+      method: editingId ? 'PUT' : 'POST',
+      body: JSON.stringify({ ...obsForm, testCaseId: params.id, testType: activeTab, sequence })
+    }), editingId ? 'Observation corrected; previous values retained in audit history.' : 'Observation recorded.', () => {
+      setObsForm(emptyObservation)
+      setEditingId(null)
+    })
   }
 
-  const deleteObservation = async (obsId: string) => {
-    try {
-      const token = localStorage.getItem('nawi_token')
-      const res = await fetch(`${API_BASE_URL}/api/v1/observations/${obsId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-
-      if (res.ok) {
-        setObservations(observations.filter(o => o.id !== obsId))
-        setSuccessMessage('Observation deleted')
-        setShowSuccessToast(true)
-        setTimeout(() => setShowSuccessToast(false), 3000)
-      }
-    } catch (e) {
-      setSubmitError('Failed to delete observation')
-      setTimeout(() => setSubmitError(''), 3000)
-    }
+  const deleteObservation = (id: string) => {
+    if (inFlight.current || !confirm('Delete this observation? Its previous values and evaluation will remain in audit history.')) return
+    return mutate(() => laboratoryApi(`/observations/${id}`, { method: 'DELETE' }), 'Observation deleted; history retained.', () => {
+      if (editingId === id) { setEditingId(null); setObsForm(emptyObservation) }
+    })
   }
 
-  const submitTest = async () => {
-    if (!confirm('Submit this test case for review? Observations will be locked.')) return
-
-    try {
-      const token = localStorage.getItem('nawi_token')
-      const res = await fetch(`${API_BASE_URL}/api/v1/test-cases/${params.id}/workflow/submit`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      const result = await res.json()
-
-      if (result.success) {
-        setTestCase(result.data)
-        setSuccessMessage('Test case submitted for review successfully')
-        setShowSuccessToast(true)
-        setTimeout(() => {
-          setShowSuccessToast(false)
-          router.push('/tests')
-        }, 2000)
-      } else {
-        setSubmitError(result.error || 'Failed to submit test case for review')
-        setTimeout(() => setSubmitError(''), 5000)
-      }
-    } catch (e) {
-      setSubmitError('Network error while submitting for review')
-      setTimeout(() => setSubmitError(''), 3000)
-    }
+  const editObservation = (observation: Observation) => {
+    setEditingId(observation.id)
+    setObsForm({ load: observation.load, indication: observation.indication, additionalWeights: observation.additionalWeights,
+      unit: observation.unit || 'g', zeroError: observation.zeroError || '0' })
   }
-
-  const isLocked = testCase && ['SUBMITTED_FOR_REVIEW', 'UNDER_REVIEW', 'APPROVED'].includes(testCase.status)
-
-  // Calculate MPE (Maximum Permissible Error) placeholder
-  // In Phase 6, this will use actual metrological calculations
-  const getMPEStatus = (load: string, indication: string) => {
-    // Simplified - will be replaced with actual calculations in Phase 6
-    const diff = Math.abs(parseFloat(load) - parseFloat(indication))
-    return diff < 0.01 ? 'PASS' : 'WARN'
-  }
+  const isOwner = session?.role === 'Technician' && session.id === testCase?.technicianId
+  const canReview = !!session && ['Reviewer', 'Administrator'].includes(session.role) && session.id !== testCase?.technicianId
+  const isAssignedReviewer = canReview && session?.id === testCase?.reviewerId
+  const isLocked = !isOwner || testCase?.status !== 'TESTING' || busy || !!loadError
+  const submitTest = () => transition('submit')
 
   if (loading) {
     return (
@@ -268,8 +142,12 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
           <div className="w-16 h-16 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-8 h-8 text-rose-600" />
           </div>
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Test Case Not Found</h3>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">The requested test case could not be found.</p>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Workspace unavailable</h3>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">{loadError || 'The requested test case could not be found.'}</p>
+          <button className="mt-3 text-indigo-700 underline dark:text-indigo-300" onClick={() => {
+            setLoading(true)
+            fetchData().catch(error => setLoadError(error.message)).finally(() => setLoading(false))
+          }}>Retry loading workspace</button>
           <button
             onClick={() => router.push('/tests')}
             className="mt-6 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
@@ -284,7 +162,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
   // Get applicable tests
   const applicableTests = Object.entries(testCase.testConfiguration)
     .filter(([_, status]) => status !== 'NOT APPLICABLE')
-    .map(([key]) => key.toUpperCase().replace('_SETTING', ' SETTING') as ObservationType)
+    .map(([key]) => (key === 'zeroSetting' ? 'ZERO_SETTING' : key.toUpperCase()) as ObservationType)
 
   // Group observations by type
   const observationsByType = applicableTests.reduce((acc, type) => {
@@ -304,6 +182,16 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
 
   return (
     <div className="space-y-6 animate-fade-in-up">
+      {(submitError || loadError) && (
+        <div role="alert" className="rounded-lg border border-rose-300 bg-rose-50 p-4 text-rose-800 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200">
+          <p>{submitError || loadError}</p>
+          <button disabled={busy} className="mt-2 underline" onClick={() => {
+            setSubmitError('')
+            setLoading(true)
+            fetchData().catch(error => setLoadError(error.message)).finally(() => setLoading(false))
+          }}>Refresh record</button>
+        </div>
+      )}
       {/* Success Toast */}
       {showSuccessToast && (
         <div className="fixed top-4 right-4 z-50 animate-fade-in-up">
@@ -319,19 +207,19 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
         <div>
           <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-1">
             <span className="font-mono">TEST CASE:</span>
-            <span className="font-mono text-slate-900 dark:text-white">{testCase.id.slice(0, 8)}...</span>
+            <span className="font-mono text-slate-900 dark:text-white">{testCase.id}</span>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Observation Workspace</h1>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{canReview ? 'Laboratory Review' : 'Observation Workspace'}</h1>
           <div className="flex flex-wrap items-center gap-3 mt-2 text-sm">
             <span className={cn(
               'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-medium',
               testCase.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' :
-              testCase.status === 'SUBMITTED_FOR_REVIEW' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+              testCase.status === 'READY_FOR_REVIEW' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
               testCase.status === 'UNDER_REVIEW' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' :
-              testCase.status === 'IN_PROGRESS' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' :
+              testCase.status === 'TESTING' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' :
               'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
             )}>
-              {testCase.status.replace('_', ' ')}
+              {statusLabel(testCase.status)}
             </span>
             {testCase.isInitialVerification && (
               <span className="px-2.5 py-0.5 rounded-full font-medium text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
@@ -350,6 +238,39 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
         </div>
       </div>
 
+      {testCase.reviewNotes && (
+        <div className="card border-l-4 border-l-amber-500 p-5">
+          <h3 className="font-semibold text-slate-900 dark:text-white">Latest reviewer feedback</h3>
+          <p className="mt-2 whitespace-pre-wrap break-words text-slate-800 dark:text-slate-100">{testCase.reviewNotes}</p>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Previous correction cycles remain in the audit history below.</p>
+        </div>
+      )}
+
+      <div className="card p-5 space-y-3 text-slate-900 dark:text-slate-100">
+        <p className="text-sm break-all">Technician: {testCase.technicianId} · Reviewer: {testCase.reviewerId || 'Not assigned'}</p>
+        {isOwner && ['DRAFT', 'RETURNED_FOR_CORRECTION'].includes(testCase.status) && (
+          <button disabled={busy || !!loadError} onClick={() => transition('testing')} className="btn bg-indigo-600 text-white disabled:opacity-50">
+            {testCase.status === 'DRAFT' ? 'Start Testing' : 'Resume Testing'}
+          </button>
+        )}
+        {canReview && testCase.status === 'READY_FOR_REVIEW' && (
+          <button disabled={busy || !!loadError} onClick={() => transition('start-review')} className="btn bg-indigo-600 text-white disabled:opacity-50">Start Review</button>
+        )}
+        {isAssignedReviewer && testCase.status === 'UNDER_REVIEW' && (
+          <div className="space-y-3">
+            <label className="block text-sm font-medium" htmlFor="correction-reason">Correction reason (required when returning)</label>
+            <textarea id="correction-reason" value={reason} disabled={busy} onChange={event => setReason(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white p-3 text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100" />
+            <div className="flex flex-wrap gap-3">
+              <button disabled={busy || !!loadError || !reason.trim()} onClick={() => transition('return')} className="btn bg-amber-700 text-white disabled:opacity-50">Return for Correction</button>
+              <button disabled={busy || !!loadError} onClick={() => transition('approve')} className="btn bg-emerald-700 text-white disabled:opacity-50">Approve Record</button>
+            </div>
+          </div>
+        )}
+        {canReview && testCase.status === 'UNDER_REVIEW' && !isAssignedReviewer && <p>Only the assigned reviewer can return or approve this record.</p>}
+        {isOwner && ['READY_FOR_REVIEW', 'UNDER_REVIEW', 'APPROVED'].includes(testCase.status) && <p>Changes are locked while this record is submitted, under review, or approved.</p>}
+        {busy && <p role="status">Saving…</p>}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Test Case Info & Environment */}
         <div className="space-y-6">
@@ -362,20 +283,23 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
             <div className="space-y-3 text-sm">
               <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-700">
                 <span className="text-slate-500 dark:text-slate-400">Name</span>
-                <span className="font-medium text-slate-900 dark:text-white">Loading...</span>
+                <span className="font-medium text-slate-900 dark:text-white">{record?.instrument?.name || 'Not recorded'}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-700">
                 <span className="text-slate-500 dark:text-slate-400">Model</span>
-                <span className="font-medium text-slate-900 dark:text-white">Loading...</span>
+                <span className="font-medium text-slate-900 dark:text-white">{record?.instrument?.model || 'Not recorded'}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-700">
                 <span className="text-slate-500 dark:text-slate-400">Serial Number</span>
-                <span className="font-mono text-slate-900 dark:text-white">Loading...</span>
+                <span className="font-mono text-slate-900 dark:text-white">{record?.instrument?.serialNumber || 'Not recorded'}</span>
               </div>
               <div className="flex justify-between py-2">
                 <span className="text-slate-500 dark:text-slate-400">Accuracy Class</span>
-                <span className="font-medium text-slate-900 dark:text-white">Loading...</span>
+                <span className="font-medium text-slate-900 dark:text-white">{record?.instrument?.accuracyClass || 'Not recorded'}</span>
               </div>
+              <p className="text-slate-700 dark:text-slate-200">Manufacturer: {record?.manufacturer?.name || 'Not recorded'}</p>
+              <p className="text-slate-700 dark:text-slate-200">Max: {record?.instrument?.maxCapacity || '—'} g · Min: {record?.instrument?.minCapacity || '—'} g</p>
+              <p className="text-slate-700 dark:text-slate-200">e: {record?.instrument?.e || '—'} g · d: {record?.instrument?.d || '—'} g</p>
             </div>
           </div>
 
@@ -396,7 +320,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                     value={lab.temperature}
                     onChange={e => setLab({...lab, temperature: e.target.value})}
                     className={cn(
-                      "block w-full px-3 py-2 bg-white dark:bg-slate-800 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all",
+                      "block w-full px-3 py-2 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all",
                       isLocked ? "border-slate-200 dark:border-slate-700 opacity-60 cursor-not-allowed" : "border-slate-300 dark:border-slate-600 focus:border-indigo-500"
                     )}
                   />
@@ -413,7 +337,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                     value={lab.humidity}
                     onChange={e => setLab({...lab, humidity: e.target.value})}
                     className={cn(
-                      "block w-full px-3 py-2 bg-white dark:bg-slate-800 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all",
+                      "block w-full px-3 py-2 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all",
                       isLocked ? "border-slate-200 dark:border-slate-700 opacity-60 cursor-not-allowed" : "border-slate-300 dark:border-slate-600 focus:border-indigo-500"
                     )}
                   />
@@ -430,7 +354,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                     value={lab.pressure}
                     onChange={e => setLab({...lab, pressure: e.target.value})}
                     className={cn(
-                      "block w-full px-3 py-2 bg-white dark:bg-slate-800 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all",
+                      "block w-full px-3 py-2 text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all",
                       isLocked ? "border-slate-200 dark:border-slate-700 opacity-60 cursor-not-allowed" : "border-slate-300 dark:border-slate-600 focus:border-indigo-500"
                     )}
                   />
@@ -459,19 +383,15 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
               <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
                 Once submitted, this test case will be locked and sent for review. All observations will become read-only.
               </p>
-              {submitError && (
-                <div className="mb-3 p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-lg text-sm text-rose-700 dark:text-rose-300 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" />
-                  {submitError}
-                </div>
-              )}
               <button
                 onClick={submitTest}
+                disabled={!!editingId}
                 className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-all shadow-lg shadow-amber-600/20"
               >
                 <CheckCircle2 className="w-5 h-5" />
                 Submit for Review
               </button>
+              {editingId && <p className="mt-2 text-sm text-slate-700 dark:text-slate-200">Save or cancel the observation correction before submitting.</p>}
             </div>
           )}
 
@@ -482,7 +402,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                 Test Case Approved
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                This test case has been approved with all metrological checks passing.
+                This laboratory record is approved and locked. Individual saved verdicts are shown alongside each observation.
               </p>
             </div>
           )}
@@ -497,7 +417,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                 {applicableTests.map((test) => (
                   <button
                     key={test}
-                    onClick={() => setActiveTab(test)}
+                    onClick={() => { setActiveTab(test); setEditingId(null); setObsForm(emptyObservation) }}
                     className={cn(
                       "px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
                       activeTab === test
@@ -560,6 +480,17 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                     />
                   </div>
                 </div>
+                <div className="mt-3 grid grid-cols-2 gap-4 text-slate-900 dark:text-slate-100">
+                  <label className="text-sm">Unit
+                    <select value={obsForm.unit} onChange={event => setObsForm({ ...obsForm, unit: event.target.value })} className="ml-2 rounded border border-slate-300 bg-white p-2 dark:border-slate-600 dark:bg-slate-900">
+                      {['mg', 'g', 'kg', 't'].map(unit => <option key={unit}>{unit}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-sm">Zero error (E0)
+                    <input value={obsForm.zeroError} onChange={event => setObsForm({ ...obsForm, zeroError: event.target.value })} className="mt-1 w-full rounded border border-slate-300 bg-white p-2 dark:border-slate-600 dark:bg-slate-900" />
+                  </label>
+                </div>
+                {editingId && <button className="mt-2 text-sm text-indigo-700 underline dark:text-indigo-300" onClick={() => { setEditingId(null); setObsForm(emptyObservation) }}>Cancel correction</button>}
                 <div className="flex justify-between items-center mt-3">
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     <span className="text-rose-500">*</span> Required fields
@@ -569,7 +500,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                     className="flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
                   >
                     <Plus className="w-4 h-4" />
-                    Record Observation
+                    {editingId ? 'Save Correction' : 'Record Observation'}
                   </button>
                 </div>
               </div>
@@ -595,12 +526,14 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                       <th className="px-4 py-3 font-medium">Load (L)</th>
                       <th className="px-4 py-3 font-medium">Indication (I)</th>
                       <th className="px-4 py-3 font-medium">ΔL</th>
+                      <th className="px-4 py-3 font-medium">Unit / E0</th>
+                      <th className="px-4 py-3 font-medium">Saved error / MPE / Verdict</th>
                       {!isLocked && <th className="px-4 py-3 font-medium text-right">Actions</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                     {observationsByType[activeTab]?.map((obs) => {
-                      const mpeStatus = getMPEStatus(obs.load, obs.indication)
+                      const evaluation = obs.evaluation
                       return (
                         <tr key={obs.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                           <td className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">
@@ -615,9 +548,26 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                           <td className="px-4 py-3 font-mono font-medium text-purple-700 dark:text-purple-300 bg-purple-50/30 dark:bg-purple-900/20">
                             {obs.additionalWeights}
                           </td>
+                          <td className="px-4 py-3 text-slate-800 dark:text-slate-100">{obs.unit || 'g'} / {obs.zeroError || '0'}</td>
+                          <td className="px-4 py-3 text-slate-800 dark:text-slate-100">
+                            {evaluation ? <div className="min-w-48 space-y-1">
+                              <p>E: {evaluation.calculation.E.value} {evaluation.calculation.E.unit}</p>
+                              <p>Ec: {evaluation.calculation.Ec.value} {evaluation.calculation.Ec.unit}</p>
+                              <p>MPE: {evaluation.rulePackage.mpeLimit ? `${evaluation.rulePackage.mpeLimit.value} ${evaluation.rulePackage.mpeLimit.unit}` : 'Not available'}</p>
+                              <p className="font-bold">{evaluation.compliance.verdict}</p>
+                              <details className="text-xs"><summary className="cursor-pointer">Evaluation details</summary>
+                                <p>{evaluation.compliance.trace?.resolutionComparison || evaluation.rulePackage.reason}</p>
+                                <p>{evaluation.rulePackage.traceability?.ruleVersion}</p>
+                                <p>{evaluation.compliance.trace?.applicableRequirement}</p>
+                                <p>Evaluated: {new Date(evaluation.evaluatedAt).toLocaleString()}</p>
+                              </details>
+                            </div> : <span>Not evaluated</span>}
+                          </td>
                           {!isLocked && (
                             <td className="px-4 py-3 text-right">
+                              <button aria-label={`Edit observation ${obs.sequence}`} onClick={() => editObservation(obs)} className="p-1.5 text-indigo-700 dark:text-indigo-300"><Pencil className="w-4 h-4" /></button>
                               <button
+                                aria-label={`Delete observation ${obs.sequence}`}
                                 onClick={() => deleteObservation(obs.id)}
                                 className="p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors"
                               >
@@ -641,13 +591,43 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                 </span>
                 <span className="flex items-center gap-1">
                   <FileText className="w-3 h-3" />
-                  Phase 5: String-based observation storage
+                  Saved laboratory observations
                 </span>
               </div>
             </div>
           </div>
         </div>
       </div>
+      <section className="card p-5 text-slate-900 dark:text-slate-100">
+        <h3 className="font-semibold mb-3">Available evidence</h3>
+        {!record?.evidence.length ? <p>No evidence attached.</p> : <ul className="space-y-3">
+          {record.evidence.map(evidence => <li key={evidence.id} className="border-b border-slate-200 pb-3 dark:border-slate-700">
+            <p className="font-medium">{evidence.fileName} · {statusLabel(evidence.testType)}</p>
+            <p className="whitespace-pre-wrap">{evidence.description}</p>
+            <p className="text-sm">{evidence.mimeType} · {evidence.sizeBytes} bytes · {new Date(evidence.uploadedAt).toLocaleString()}</p>
+            {evidence.fileData ? <button className="text-indigo-700 underline dark:text-indigo-300" onClick={() => {
+              try {
+                const raw = atob(evidence.fileData!.replace(/^data:[^,]*,/, ''))
+                const url = URL.createObjectURL(new Blob([Uint8Array.from(raw, char => char.charCodeAt(0))], { type: 'application/octet-stream' }))
+                const link = document.createElement('a'); link.href = url; link.download = evidence.fileName; link.click()
+                setTimeout(() => URL.revokeObjectURL(url), 1000)
+              } catch { setSubmitError('This evidence file could not be downloaded.') }
+            }}>Download evidence</button> : <p className="text-sm">File content not available.</p>}
+          </li>)}
+        </ul>}
+      </section>
+      <section className="card p-5 text-slate-900 dark:text-slate-100">
+        <h3 className="font-semibold mb-3">Review and audit history</h3>
+        {!record?.history.length ? <p>No audit events recorded.</p> : <ol className="space-y-4">
+          {record.history.map(event => <li key={event.id} className="border-l-2 border-slate-300 pl-4 dark:border-slate-600">
+            <p className="font-medium">{statusLabel(event.action)}</p>
+            <p className="text-sm break-all">{new Date(event.timestamp).toLocaleString()} · {event.actorRole} · {event.actorId}</p>
+            {event.newState && <p className="text-sm">{event.previousState && `${statusLabel(event.previousState)} → `}{statusLabel(event.newState)}</p>}
+            {typeof event.metadata?.reason === 'string' && <p className="whitespace-pre-wrap break-words">{event.metadata.reason}</p>}
+            {event.metadata && <details className="mt-1 text-sm"><summary className="cursor-pointer">Saved audit details</summary><pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-all rounded bg-slate-100 p-3 dark:bg-slate-800">{JSON.stringify(event.metadata, null, 2)}</pre></details>}
+          </li>)}
+        </ol>}
+      </section>
     </div>
   )
 }

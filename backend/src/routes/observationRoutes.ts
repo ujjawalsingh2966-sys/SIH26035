@@ -1,3 +1,4 @@
+import { touchTestCase } from '../services/TestCaseRevision';
 import { Router, Request, Response } from 'express';
 import { body } from 'express-validator';
 import { observationStore, testCaseStore, instrumentStore } from '../repositories';
@@ -6,10 +7,11 @@ import { validateRequest } from '../middlewares/validateRequest';
 import { ObservationRecord } from '../types/domain';
 import { EvaluationService } from '../services/EvaluationService';
 import { AuditService } from '../services/AuditService';
+import { requireTestCaseAccess } from '../middlewares/testCaseAccess';
 
 export const observationRoutes = Router();
 
-observationRoutes.get('/:testCaseId', (req, res) => {
+observationRoutes.get('/:testCaseId', requireTestCaseAccess(req => req.params.testCaseId), (req, res) => {
   const all = observationStore.findAll();
   const filtered = all.filter(o => o.testCaseId === req.params.testCaseId);
   res.json({ success: true, data: filtered });
@@ -82,6 +84,7 @@ observationRoutes.post(
     }
 
     observationStore.saveItem(newObservation);
+    touchTestCase(testCase);
 
     AuditService.recordEvent({
       testCaseId: testCase.id,
@@ -98,3 +101,61 @@ observationRoutes.post(
     res.status(201).json({ success: true, data: newObservation });
   }
 );
+
+// Corrections are allowed only after the owning technician resumes TESTING.
+// Keep a complete prior snapshot (including evaluation) in the append-only audit.
+observationRoutes.put('/:id', requireRole(['Technician']),
+  body('load').isString().notEmpty(),
+  body('indication').isString().notEmpty(),
+  body('additionalWeights').isString().notEmpty(),
+  validateRequest,
+  (req, res) => {
+    const previous = observationStore.findById(req.params.id);
+    if (!previous) return res.status(404).json({ success: false, error: 'Observation not found' });
+    const testCase = testCaseStore.findById(previous.testCaseId);
+    if (!testCase || testCase.technicianId !== req.user!.id) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Observation belongs to another technician' });
+    }
+    if (testCase.status !== 'TESTING') {
+      return res.status(403).json({ success: false, error: 'Corrections require TESTING status' });
+    }
+    const instrument = instrumentStore.findById(testCase.instrumentId);
+    if (!instrument) return res.status(404).json({ success: false, error: 'Instrument not found' });
+    const updated: ObservationRecord = {
+      ...previous,
+      load: req.body.load, indication: req.body.indication, additionalWeights: req.body.additionalWeights,
+      unit: req.body.unit ?? previous.unit, zeroError: req.body.zeroError ?? previous.zeroError
+    };
+    try {
+      updated.evaluation = EvaluationService.evaluateObservation(instrument, updated, testCase.isInitialVerification !== false);
+    } catch (err: any) {
+      return res.status(400).json({ success: false, error: `Evaluation failed: ${err.message}` });
+    }
+    AuditService.recordEvent({
+      testCaseId: testCase.id, actorId: req.user!.id, actorRole: req.user!.role,
+      action: 'OBSERVATION_UPDATED', metadata: { observationId: previous.id, previous, updated }
+    });
+    observationStore.saveItem(updated);
+    touchTestCase(testCase);
+    res.json({ success: true, data: updated });
+  }
+);
+
+observationRoutes.delete('/:id', requireRole(['Technician']), (req, res) => {
+  const previous = observationStore.findById(req.params.id);
+  if (!previous) return res.status(404).json({ success: false, error: 'Observation not found' });
+  const testCase = testCaseStore.findById(previous.testCaseId);
+  if (!testCase || testCase.technicianId !== req.user!.id) {
+    return res.status(403).json({ success: false, error: 'Forbidden: Observation belongs to another technician' });
+  }
+  if (testCase.status !== 'TESTING') {
+    return res.status(403).json({ success: false, error: 'Corrections require TESTING status' });
+  }
+  AuditService.recordEvent({
+    testCaseId: testCase.id, actorId: req.user!.id, actorRole: req.user!.role,
+    action: 'OBSERVATION_DELETED', metadata: { observationId: previous.id, previous }
+  });
+  observationStore.deleteItem(previous.id);
+  touchTestCase(testCase);
+  res.json({ success: true });
+});

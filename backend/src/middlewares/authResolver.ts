@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env';
 import { logger } from '../utils/logger';
+import { accountStore } from '../services/AccountService';
 
 // Type extension for Express Request
 declare global {
@@ -20,7 +21,13 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, config.jwtSecret) as { id: string; role: string; email: string };
+    const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as { id: string; role: string; email: string };
+    if (decoded.role === 'Business') {
+      const account = accountStore.findById(decoded.id);
+      if (!account || !account.active || account.role !== 'Business' || account.email !== decoded.email) {
+        return res.status(401).json({ success: false, error: 'Account is unavailable. Please sign in again.' });
+      }
+    }
     req.user = decoded;
     next();
   } catch (err) {

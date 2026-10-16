@@ -1,14 +1,18 @@
+import { touchTestCase } from '../services/TestCaseRevision';
 import { Router, Request, Response } from 'express';
 import { body } from 'express-validator';
 import { requireRole } from '../middlewares/authResolver';
 import { validateRequest } from '../middlewares/validateRequest';
 import { EvidenceService } from '../services/EvidenceService';
+import { requireTestCaseAccess } from '../middlewares/testCaseAccess';
+import { testCaseStore } from '../repositories';
+import { AuditService } from '../services/AuditService';
 
 export const evidenceRoutes = Router();
 
 evidenceRoutes.post(
   '/',
-  requireRole(['Technician', 'Administrator']),
+  requireRole(['Technician']),
   body('testCaseId').isString().notEmpty(),
   body('testType').isIn(['WEIGHING', 'ECCENTRICITY', 'REPEATABILITY', 'TARE', 'ZERO_SETTING', 'GENERAL']),
   body('description').isString().notEmpty(),
@@ -16,10 +20,15 @@ evidenceRoutes.post(
   body('mimeType').isString().notEmpty(),
   body('sizeBytes').isNumeric(),
   validateRequest,
+  requireTestCaseAccess(req => req.body.testCaseId),
   (req: Request, res: Response) => {
     try {
       const user = (req as any).user;
       const data = req.body;
+      const testCase = testCaseStore.findById(data.testCaseId)!;
+      if (testCase.status !== 'TESTING') {
+        return res.status(403).json({ success: false, error: 'Evidence changes require TESTING status' });
+      }
 
       const evidence = EvidenceService.addEvidence(
         data.testCaseId,
@@ -31,6 +40,11 @@ evidenceRoutes.post(
         user.id,
         data.fileData
       );
+      touchTestCase(testCase);
+      AuditService.recordEvent({
+        testCaseId: testCase.id, actorId: user.id, actorRole: user.role,
+        action: 'EVIDENCE_ADDED', metadata: { evidenceId: evidence.id, fileName: evidence.fileName }
+      });
 
       res.status(201).json({ success: true, data: evidence });
     } catch (err: any) {
@@ -39,7 +53,7 @@ evidenceRoutes.post(
   }
 );
 
-evidenceRoutes.get('/:testCaseId', requireRole(['Technician', 'Reviewer', 'Administrator']), (req, res) => {
+evidenceRoutes.get('/:testCaseId', requireRole(['Technician', 'Reviewer', 'Administrator']), requireTestCaseAccess(req => req.params.testCaseId), (req, res) => {
   try {
     const records = EvidenceService.getEvidenceForTestCase(req.params.testCaseId);
     res.json({ success: true, data: records });
