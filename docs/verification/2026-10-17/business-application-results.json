@@ -1,0 +1,394 @@
+{
+  "date": "2026-10-17",
+  "scope": "Business application slice completion; redacted metadata only",
+  "suites": [
+    {
+      "suite": "business",
+      "source": "artifacts/browser-review/business-applications-completion-final-20261017/accounts-2026-10-17T12-13-44-598Z/results.json",
+      "browser": "156.0.8078.4",
+      "frontend": "http://127.0.0.1:3015",
+      "backend": "http://127.0.0.1:4005",
+      "counts": {
+        "PASS": 24,
+        "FAIL": 0,
+        "BLOCKED": 0
+      },
+      "scenarios": [
+        {
+          "name": "Existing login links expose Business registration with persistent associated labels",
+          "status": "PASS"
+        },
+        {
+          "name": "Invalid registration returns real safe validation feedback and preserves entered values",
+          "status": "PASS"
+        },
+        {
+          "name": "Confirmed failed delivery restores retry and preserves registration values",
+          "status": "PASS"
+        },
+        {
+          "name": "Slow real registration plus rapid clicks and keyboard submission saves exactly one account",
+          "status": "PASS"
+        },
+        {
+          "name": "Business signs in with real backend and session survives reload",
+          "status": "PASS"
+        },
+        {
+          "name": "Business has no laboratory navigation and direct staff pages show access denied on desktop/mobile",
+          "status": "PASS"
+        },
+        {
+          "name": "Business token cannot read or mutate staff APIs including all report representations",
+          "status": "PASS"
+        },
+        {
+          "name": "Registration rejects privileged roles and documented staff-email collisions without saving",
+          "status": "PASS"
+        },
+        {
+          "name": "Account and registration remain usable in dark theme at a narrow viewport",
+          "status": "PASS"
+        },
+        {
+          "name": "Duplicate registration has real 409 feedback and preserves values",
+          "status": "PASS"
+        },
+        {
+          "name": "Logout removes the current session and protected reload returns to login",
+          "status": "PASS"
+        },
+        {
+          "name": "Wrong password shows real 401 and cannot create a session",
+          "status": "PASS"
+        },
+        {
+          "name": "A second Business account can register/login without displaying the first identity",
+          "status": "PASS"
+        },
+        {
+          "name": "Business application form validates locally, retains values and safely retries a failed delivery",
+          "status": "PASS"
+        },
+        {
+          "name": "Rapid retry creates one submitted owner record and opens its real detail view",
+          "status": "PASS"
+        },
+        {
+          "name": "Privileged fields, forged ownership and post-submission changes are rejected",
+          "status": "PASS"
+        },
+        {
+          "name": "Application navigation and details remain readable in dark mobile layout",
+          "status": "PASS"
+        },
+        {
+          "name": "Cross-Business detail access is hidden while the owner list persists",
+          "status": "PASS"
+        },
+        {
+          "name": "Application labels, required fields and keyboard focus work without a mutation",
+          "status": "PASS"
+        },
+        {
+          "name": "Real backend application validation preserves the entered form and permits retry",
+          "status": "PASS"
+        },
+        {
+          "name": "Lost real save response is safely retried by keyboard without a duplicate or extra history",
+          "status": "PASS"
+        },
+        {
+          "name": "Application list loading, connection-error retry, search and narrow themes work",
+          "status": "PASS"
+        },
+        {
+          "name": "Actual backend outage gives a connection error; restart preserves accounts, applications and retry",
+          "status": "PASS"
+        },
+        {
+          "name": "No project records changed and browser has no JavaScript exceptions",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "suite": "laboratory",
+      "source": "artifacts/browser-review/business-applications-20261017-full-final/attempt-2026-10-17T12-10-29-558Z/results.json",
+      "browser": "Chromium 156.0.8078.4",
+      "frontend": "http://127.0.0.1:3015",
+      "backend": "http://127.0.0.1:4005",
+      "counts": {
+        "PASS": 37,
+        "FAIL": 0,
+        "BLOCKED": 0
+      },
+      "scenarios": [
+        {
+          "name": "Technician signs in through the login form",
+          "status": "PASS"
+        },
+        {
+          "name": "Queue loading indicator and empty state use a real delayed request",
+          "status": "PASS"
+        },
+        {
+          "name": "Instrument form values and placeholders readable in both themes",
+          "status": "PASS"
+        },
+        {
+          "name": "Metadata fields keep identifiable labels after entering values",
+          "status": "PASS"
+        },
+        {
+          "name": "Dark-theme page headings and checkbox labels remain readable",
+          "status": "PASS"
+        },
+        {
+          "name": "Create an isolated instrument and draft test case via UI",
+          "status": "PASS"
+        },
+        {
+          "name": "DRAFT blocks observation input in UI and real backend",
+          "status": "PASS"
+        },
+        {
+          "name": "Start Testing duplicate clicks produce one transition",
+          "status": "PASS"
+        },
+        {
+          "name": "Save laboratory conditions through UI",
+          "status": "PASS"
+        },
+        {
+          "name": "Submission validation shows backend failure for empty observations",
+          "status": "PASS"
+        },
+        {
+          "name": "Invalid observation shows saved-evaluation API error and preserves data",
+          "status": "PASS"
+        },
+        {
+          "name": "Valid observation persists exact backend evaluation with duplicate-click protection",
+          "status": "PASS"
+        },
+        {
+          "name": "Reload preserves laboratory conditions, readings and evaluation",
+          "status": "PASS"
+        },
+        {
+          "name": "Available evidence renders and downloads from real persisted evidence",
+          "status": "PASS"
+        },
+        {
+          "name": "Submit for review locks technician editing and sends one request",
+          "status": "PASS"
+        },
+        {
+          "name": "Second technician cannot view or mutate the first technician record",
+          "status": "PASS"
+        },
+        {
+          "name": "Reviewer finds submitted record and sees instrument, conditions, evaluations, evidence",
+          "status": "PASS"
+        },
+        {
+          "name": "Reviewer claims record and return requires a correction reason",
+          "status": "PASS"
+        },
+        {
+          "name": "Return for Correction persists reason once under repeated clicks",
+          "status": "PASS"
+        },
+        {
+          "name": "Owning technician sees feedback and must Resume Testing before correction",
+          "status": "PASS"
+        },
+        {
+          "name": "Technician correction recalculates on backend and retains original audit snapshot",
+          "status": "PASS"
+        },
+        {
+          "name": "Supported observation deletion retains its saved evaluation in audit history",
+          "status": "PASS"
+        },
+        {
+          "name": "Resubmission returns corrected record to READY_FOR_REVIEW",
+          "status": "PASS"
+        },
+        {
+          "name": "Stale reviewer tab gets clear 409 feedback across correction cycles",
+          "status": "PASS"
+        },
+        {
+          "name": "Reviewer starts new review and approves corrected record once",
+          "status": "PASS"
+        },
+        {
+          "name": "Reload retains APPROVED state, technician locks, feedback and full review history",
+          "status": "PASS"
+        },
+        {
+          "name": "Reviewer navigation restricts technician creation actions",
+          "status": "PASS"
+        },
+        {
+          "name": "Reports navigation opens an available report screen",
+          "status": "PASS"
+        },
+        {
+          "name": "Download existing approved PDF API through browser and compare persisted values",
+          "status": "PASS"
+        },
+        {
+          "name": "Second technician cannot access the first technician approved report",
+          "status": "PASS"
+        },
+        {
+          "name": "Offline request failure shows feedback and successful retry",
+          "status": "PASS"
+        },
+        {
+          "name": "Repeated instrument creation clicks do not create duplicate mutations",
+          "status": "PASS"
+        },
+        {
+          "name": "Administrator can claim and approve through the permitted browser workflow",
+          "status": "PASS"
+        },
+        {
+          "name": "Logout clears session and protected navigation returns to login",
+          "status": "PASS"
+        },
+        {
+          "name": "Business registers, signs in, submits and reloads its owned application through the actual form",
+          "status": "PASS"
+        },
+        {
+          "name": "Browser console contains no application runtime errors",
+          "status": "PASS"
+        },
+        {
+          "name": "All browser application traffic stayed local and original project records were preserved",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "suite": "reports",
+      "source": "artifacts/browser-review/business-applications-lab-regressions-final-20261017/reports-2026-10-17T12-16-46-520Z/results.json",
+      "browser": "156.0.8078.4",
+      "frontend": "http://127.0.0.1:3015",
+      "backend": "http://127.0.0.1:4005",
+      "counts": {
+        "PASS": 13,
+        "FAIL": 0,
+        "BLOCKED": 0
+      },
+      "scenarios": [
+        {
+          "name": "Real delayed list shows loading then an empty state without generating reports",
+          "status": "PASS"
+        },
+        {
+          "name": "Supported API setup creates approved records for two technicians and an ineligible draft",
+          "status": "PASS"
+        },
+        {
+          "name": "Owner list, direct URL, refresh and search use authorized backend rows without generation",
+          "status": "PASS"
+        },
+        {
+          "name": "Owner previews HTML and downloads one real PDF under rapid clicks; content matches saved evaluation",
+          "status": "PASS"
+        },
+        {
+          "name": "Unrelated technician sees only their own approved report; data/HTML/PDF remain forbidden for the other record",
+          "status": "PASS"
+        },
+        {
+          "name": "Reviewer and Administrator list approved reports and use authorized HTML/PDF actions",
+          "status": "PASS"
+        },
+        {
+          "name": "Mobile Reports entry, both themes and narrow page controls work without horizontal clipping",
+          "status": "PASS"
+        },
+        {
+          "name": "Offline list failure has retry feedback, clears rows and recovers with real backend data",
+          "status": "PASS"
+        },
+        {
+          "name": "Real 401 listing response produces distinct access denied state and recovers",
+          "status": "PASS"
+        },
+        {
+          "name": "Real denied PDF request shows error without download/audit; allowed retry succeeds",
+          "status": "PASS"
+        },
+        {
+          "name": "Cross-tab account changes clear old rows/preview and discard a delayed previous-account response",
+          "status": "PASS"
+        },
+        {
+          "name": "Pagination uses real authorized records and excludes the other technician from totals",
+          "status": "PASS"
+        },
+        {
+          "name": "Anonymous listing and protected report requests remain unauthorized",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "suite": "instrumentSubmission",
+      "source": "artifacts/browser-review/business-applications-lab-regressions-final-20261017/submission-2026-10-17T12-17-38-180Z/results.json",
+      "browser": "156.0.8078.4",
+      "frontend": "http://127.0.0.1:3015",
+      "backend": "http://127.0.0.1:4005",
+      "counts": {
+        "PASS": 9,
+        "FAIL": 0,
+        "BLOCKED": 0
+      },
+      "scenarios": [
+        {
+          "name": "Immediate rapid clicks and direct form submissions create one instrument and case",
+          "status": "PASS"
+        },
+        {
+          "name": "Enter key combined with clicking cannot overlap while test case response is slow",
+          "status": "PASS"
+        },
+        {
+          "name": "Slow real instrument response keeps controls pending and creates no duplicates",
+          "status": "PASS"
+        },
+        {
+          "name": "Confirmed backend rejection preserves values and allows a successful retry",
+          "status": "PASS"
+        },
+        {
+          "name": "Saved instrument is reused when confirmed downstream failure is retried",
+          "status": "PASS"
+        },
+        {
+          "name": "Another legitimate instrument can be created after completing the previous form",
+          "status": "PASS"
+        },
+        {
+          "name": "Ambiguous instruments response after real save does not trigger an unsafe retry",
+          "status": "PASS"
+        },
+        {
+          "name": "Ambiguous test-cases response after real save does not trigger an unsafe retry",
+          "status": "PASS"
+        },
+        {
+          "name": "Existing classification validation remains intact and does not lock the form",
+          "status": "PASS"
+        }
+      ]
+    }
+  ]
+}

@@ -4,12 +4,13 @@ import { testCaseStore, instrumentStore, manufacturerStore } from '../src/reposi
 import { Instrument, Manufacturer, TestCase } from '../src/types/domain';
 import jwt from 'jsonwebtoken';
 import { config } from '../src/config/env';
+import { testSession } from './helpers/persistedIdentity';
 
 let server: any;
 
-const technician1Token = jwt.sign({ id: 'tech-1', role: 'Technician', email: 't1@example.com' }, config.jwtSecret);
-const technician2Token = jwt.sign({ id: 'tech-2', role: 'Technician', email: 't2@example.com' }, config.jwtSecret);
-const reviewerToken = jwt.sign({ id: 'rev123', role: 'Reviewer', email: 'rev@example.com' }, config.jwtSecret);
+const technician1Token = testSession('tech-1', 'Technician', 't1@example.com');
+const technician2Token = testSession('tech-2', 'Technician', 't2@example.com');
+const reviewerToken = testSession('rev123', 'Reviewer', 'rev@example.com');
 
 beforeAll((done) => {
   server = app.listen(0, () => {

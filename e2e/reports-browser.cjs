@@ -147,11 +147,17 @@ async function runChecks() {
     expect(read('testCases')).toHaveLength(0);
     const audits = read('audit');
     const before = reportRequests();
-    await page.route(`${backend}/api/v1/repository/search?**`, async route => { await new Promise(resolve => setTimeout(resolve, 800)); await route.continue(); }, { times: 1 });
-    await page.getByRole('link', { name: 'Reports', exact: true }).click();
-    await expect(page.getByRole('status').filter({ hasText: 'Loading reports' })).toBeVisible();
-    await screenshot('reports-loading');
+    let release;
+    const held = new Promise(resolve => { release = resolve; });
+    const delayList = async route => { await held; await route.continue(); };
+    await page.route(`${backend}/api/v1/repository/search?**`, delayList);
+    try {
+      await page.getByRole('link', { name: 'Reports', exact: true }).click();
+      await expect(page.getByRole('status').filter({ hasText: 'Loading reports' })).toBeVisible();
+      await screenshot('reports-loading');
+    } finally { release(); }
     await expect(page.getByText('No approved reports found.', { exact: true })).toBeVisible();
+    await page.unroute(`${backend}/api/v1/repository/search?**`, delayList);
     await screenshot('reports-empty');
     expect(reportRequests()).toBe(before);
     expect(read('audit')).toEqual(audits);
@@ -253,6 +259,7 @@ async function runChecks() {
   await scenario('Mobile Reports entry, both themes and narrow page controls work without horizontal clipping', async () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${frontend}/dashboard`);
+    await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
     await page.getByRole('link', { name: 'Reports', exact: true }).click();
     await expect(row(mainId)).toBeVisible();
     for (const theme of ['light', 'dark']) {

@@ -1,5 +1,9 @@
-// Give local browser verification its own build cache while another dev server runs.
-module.exports = {
-  distDir: process.env.W8LAB_BROWSER_BUILD_DIR || '.next',
-  ...(process.env.W8LAB_BROWSER_BUILD_DIR ? { typescript: { tsconfigPath: 'tsconfig.browser.json' } } : {}),
-};
+const { PHASE_DEVELOPMENT_SERVER } = require('next/constants');
+
+// A dev server rewrites its cache continuously. Never share that cache with
+// next build/start: their HTML refers to immutable, hashed production assets.
+module.exports = (phase) => ({
+  distDir: process.env.W8LAB_BROWSER_BUILD_DIR
+    || (phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next-production'),
+  typescript: { tsconfigPath: 'tsconfig.browser.json' },
+});

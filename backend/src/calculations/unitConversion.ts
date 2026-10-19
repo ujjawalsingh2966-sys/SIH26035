@@ -13,6 +13,20 @@ const GRAM_FACTORS: Record<Unit, Decimal> = {
   t: new Decimal('1000000'),
 };
 
+export function isMassUnit(value: unknown): value is Unit {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(GRAM_FACTORS, value);
+}
+
+export function finiteDecimal(value: unknown, label = 'Quantity'): Decimal {
+  if (typeof value !== 'string' || !value.trim() || value.length > 100) {
+    throw new Error(`${label} must be a finite decimal string`);
+  }
+  let parsed: Decimal;
+  try { parsed = new Decimal(value); } catch { throw new Error(`${label} must be a finite decimal string`); }
+  if (!parsed.isFinite()) throw new Error(`${label} must be a finite decimal string`);
+  return parsed;
+}
+
 /**
  * Converts any MetrologicalQuantity to a target unit natively via precise power multiplication/division.
  * This satisfies Rule-Unit-1 and Rule-Unit-2.
@@ -21,7 +35,10 @@ export function convertToUnit(
   source: MetrologicalQuantity,
   targetUnit: Unit
 ): DecimalQuantity {
-  const value = new Decimal(source.value);
+  if (!isMassUnit(source.unit) || !isMassUnit(targetUnit)) {
+    throw new Error('Unsupported mass unit. Use mg, g, kg or t');
+  }
+  const value = finiteDecimal(source.value);
 
   if (source.unit === targetUnit) {
     return { value, unit: targetUnit };

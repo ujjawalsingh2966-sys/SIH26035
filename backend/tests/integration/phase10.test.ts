@@ -108,7 +108,9 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
       expect(data.testCaseId).toBe(testCaseId);
       // Phase 8 wiring: overallVerdict is now the real Compliance Engine verdict
       // aggregated from persisted observation evaluations, not a hardcoded literal.
-      expect(data.complianceSummary.overallVerdict).toBe('PASS');
+      expect(data.complianceSummary.overallVerdict).toBe('INCOMPLETE');
+      expect(data.programme.observedOutcome).toBe('PASS');
+      expect(data.status).toBe('PROTOTYPE');
       expect(data.complianceSummary.weighing).toBe('PASS');
       expect(data.meta.cryptographicSeal).toBeDefined();
       // Rule version is read from the persisted evaluation trace, not a literal -
@@ -207,7 +209,9 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
       observationStore.saveItem(failObs);
 
       const data = ReportService.generateReportData(failTc.id, 'Administrator');
-      expect(data.complianceSummary.overallVerdict).toBe('FAIL');
+      expect(data.complianceSummary.overallVerdict).toBe('INCOMPLETE');
+      expect(data.programme.observedOutcome).toBe('FAIL');
+      expect(data.status).toBe('PROTOTYPE');
       expect(data.complianceSummary.weighing).toBe('FAIL');
       expect(data.observationEvaluations[0].verdict).toBe('FAIL');
     });

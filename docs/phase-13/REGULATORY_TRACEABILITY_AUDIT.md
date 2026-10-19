@@ -1,5 +1,7 @@
 # Phase 13 - Regulatory Traceability Audit
 
+Current-status correction (P3, 18 October 2026): the mappings below are historical and contain incorrect terminology/clause claims. Native repeatability is a range-of-errors check under 3.6.1/A.4.10, not a standard-deviation check; zero accuracy references 4.5.2/A.4.2.3. A SHA-256 software fingerprint is not statutory conformity or a signature. Use the [verified current clause register and limitations](../P3_OIML_APPLICABILITY_AND_NATIVE_TESTS.md) instead of treating this document's conclusion as certification evidence.
+
 ## Overview
 NAWI Compliance Automation mandates OIML R 76-1:2006 adherence.
 

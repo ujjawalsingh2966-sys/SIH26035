@@ -9,6 +9,10 @@ import { WorkflowService } from '../services/WorkflowService';
 import { AuditService } from '../services/AuditService';
 import { RepositoryService } from '../services/RepositoryService';
 import { requireTestCaseAccess, requireCurrentRevision } from '../middlewares/testCaseAccess';
+import { finiteDecimal } from '../calculations/unitConversion';
+import { evaluationSupport, MasterDataError, validateInstrument } from '../services/MasterDataService';
+import { manufacturerStore } from '../repositories';
+import { randomUUID } from 'crypto';
 
 export const testCaseRoutes = Router();
 
@@ -30,6 +34,21 @@ testCaseRoutes.post(
     const { instrumentId } = req.body;
     const instrument = instrumentStore.findById(instrumentId);
     if (!instrument) return res.status(404).json({ success: false, error: 'Instrument not found' });
+    const manufacturer = manufacturerStore.findById(instrument.manufacturerId);
+    try {
+      if (!instrument.declaredSpecifications) throw new MasterDataError('Legacy instrument metadata must be explicitly validated before creating a new case', 409);
+      const checked = validateInstrument({ manufacturerId: instrument.manufacturerId, name: instrument.name, model: instrument.model, serialNumber: instrument.serialNumber,
+        isWeighing: instrument.isWeighing, isManual: instrument.isManual, isElectronic: instrument.isElectronic, isSingleRange: instrument.isSingleRange,
+        accuracyClass: instrument.accuracyClass, maxCapacity: instrument.declaredSpecifications.maxCapacity,
+        minCapacity: instrument.declaredSpecifications.minCapacity, e: instrument.declaredSpecifications.e, d: instrument.declaredSpecifications.d,
+        weighingUnit: instrument.declaredSpecifications.unit, hasTare: instrument.hasTare, hasAuxiliaryIndication: instrument.hasAuxiliaryIndication,
+        isGrading: instrument.isGrading, softwareControlled: instrument.softwareControlled, softwareIdentification: instrument.softwareIdentification });
+      if ((['maxCapacity', 'minCapacity', 'e', 'd', 'n'] as const).some(key => checked[key] !== instrument[key])) throw new MasterDataError('Saved canonical and declared instrument specifications differ', 409);
+    } catch (error) {
+      return res.status(409).json({ success: false, error: error instanceof Error ? error.message : 'Invalid instrument metadata' });
+    }
+    const support = evaluationSupport(instrument);
+    if (!support.supported) return res.status(409).json({ success: false, error: support.reasons.join('; ') });
     
     const userRole = (req as any).user?.role || 'Technician';
     const userId = (req as any).user?.id || 'sys-tech';
@@ -43,14 +62,16 @@ testCaseRoutes.post(
     };
 
     const newTestCase: TestCase = {
-      id: `tc_${Date.now()}`,
+      id: `tc_${randomUUID()}`,
       instrumentId: instrument.id,
       technicianId: userId,
       status: 'DRAFT',
       revision: 0,
       testConfiguration,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      masterDataSnapshot: { version: 'W8LAB-MASTER-1', capturedAt: new Date().toISOString(),
+        instrument: JSON.parse(JSON.stringify(instrument)), manufacturer: JSON.parse(JSON.stringify(manufacturer)) }
     };
 
     testCaseStore.saveItem(newTestCase);
@@ -70,9 +91,9 @@ testCaseRoutes.post(
 testCaseRoutes.put(
   '/:id/laboratory-conditions',
   requireRole(['Technician']),
-  body('temperature').isString(),
-  body('humidity').isString(),
-  body('pressure').isString(),
+  body('temperature').custom(value => { finiteDecimal(value, 'Temperature'); return true; }),
+  body('humidity').custom(value => { const parsed = finiteDecimal(value, 'Humidity'); return parsed.gte(0) && parsed.lte(100); }).withMessage('Humidity must be a decimal from 0 to 100%'),
+  body('pressure').custom(value => finiteDecimal(value, 'Pressure').gt(0)).withMessage('Pressure must be a positive decimal in hPa'),
   validateRequest,
   (req: Request, res: Response) => {
     const testCase = testCaseStore.findById(req.params.id);
@@ -154,7 +175,7 @@ testCaseRoutes.post('/:id/workflow/approve', requireRole(['Reviewer', 'Administr
 testCaseRoutes.put(
   '/:id/status',
   requireRole(['Technician']),
-  body('status').isIn(['TESTING']),
+  body('status').isString().bail().isIn(['TESTING']),
   validateRequest,
   requireCurrentRevision,
   (req: Request, res: Response) => {

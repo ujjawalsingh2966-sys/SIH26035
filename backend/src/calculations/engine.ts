@@ -39,6 +39,9 @@ export class CalculationEngine {
     const e = normalized.e;
     const E0 = normalized.E0;
 
+    if (!e.value.gt(0)) throw new Error('Verification interval e must be positive');
+    if (L.value.lt(0) || deltaL.value.lt(0)) throw new Error('Load and additional weights must be non-negative');
+
     const traces: CalculationTrace[] = [];
 
     // 2. CALC-P: True Indication

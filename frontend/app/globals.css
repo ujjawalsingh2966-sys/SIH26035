@@ -33,16 +33,19 @@
     --shadow-md: 0 4px 6px -1px var(--color-shadow-md), 0 2px 4px -2px var(--color-shadow-md);
     --shadow-lg: 0 10px 15px -3px var(--color-shadow-lg), 0 4px 6px -4px var(--color-shadow-lg);
     --shadow-glow: 0 0 16px rgba(79, 70, 229, 0.15);
-    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    --transition-fast: 150ms var(--ease-out);
+    --transition-base: 200ms var(--ease-out);
+    --transition-slow: 300ms var(--ease-out);
     --radius-sm: 0.25rem;
     --radius-md: 0.375rem;
     --radius-lg: 0.5rem;
     --radius-xl: 0.75rem;
-    --font-sans: Arial, Helvetica, sans-serif;
+    --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
-    --font-display: Arial, Helvetica, sans-serif;
+    --font-display: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --container-sm: 640px;
     --container-md: 768px;
     --container-lg: 1024px;
@@ -110,25 +113,18 @@
 
   body {
     @apply bg-slate-50 text-slate-900 font-sans antialiased;
-    background-color: #faf5ff;
-    background-image:
-      radial-gradient(circle at 12% 18%, rgba(196, 181, 253, 0.72) 0, rgba(196, 181, 253, 0) 34%),
-      radial-gradient(circle at 86% 14%, rgba(254, 240, 138, 0.78) 0, rgba(254, 240, 138, 0) 32%),
-      radial-gradient(circle at 78% 84%, rgba(216, 180, 254, 0.58) 0, rgba(216, 180, 254, 0) 36%),
-      radial-gradient(circle at 18% 88%, rgba(253, 224, 71, 0.42) 0, rgba(253, 224, 71, 0) 34%),
-      linear-gradient(135deg, #faf5ff 0%, #fffbeb 52%, #f5f3ff 100%);
-    background-attachment: fixed;
+    background-color: var(--color-bg);
     color: var(--color-text);
-    font-family: Arial, Helvetica, sans-serif;
-    line-height: 1.6;
+    font-family: var(--font-sans);
+    line-height: 1.5;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display font-bold italic text-slate-900;
-    font-family: Arial, Helvetica, sans-serif;
-    font-style: italic !important;
-    font-weight: 700 !important;
-    line-height: 1.25;
+    @apply font-display font-semibold text-slate-900 dark:text-slate-100;
+    font-family: var(--font-display);
+    font-style: normal;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
   }
 
   h1 { @apply text-3xl md:text-4xl; }
@@ -161,21 +157,14 @@
 }
 
 @layer components {
-  /* Soft purple-and-yellow mesh shared by auth and dashboard shells. */
+  /* Quiet application canvas; retained as a compatibility utility for existing shells. */
   .mesh-background {
-    background-color: #faf5ff;
-    background-image:
-      radial-gradient(circle at 12% 18%, rgba(196, 181, 253, 0.72) 0, rgba(196, 181, 253, 0) 34%),
-      radial-gradient(circle at 86% 14%, rgba(254, 240, 138, 0.78) 0, rgba(254, 240, 138, 0) 32%),
-      radial-gradient(circle at 78% 84%, rgba(216, 180, 254, 0.58) 0, rgba(216, 180, 254, 0) 36%),
-      radial-gradient(circle at 18% 88%, rgba(253, 224, 71, 0.42) 0, rgba(253, 224, 71, 0) 34%),
-      linear-gradient(135deg, #faf5ff 0%, #fffbeb 52%, #f5f3ff 100%);
-    background-attachment: fixed;
+    background-color: var(--color-bg);
   }
 
   /* Button Variants */
   .btn {
-    @apply inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center rounded-lg font-medium transition-[color,background-color,border-color,box-shadow,transform] duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-primary {
@@ -209,7 +198,7 @@
 
   /* Card Component */
   .card {
-    @apply bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm transition-all duration-200;
+    @apply bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm transition-[border-color,box-shadow,transform] duration-200;
   }
 
   .card-hover {
@@ -230,7 +219,7 @@
 
   /* Input Components */
   .input {
-    @apply block w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-all;
+    @apply block w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition-[border-color,box-shadow,background-color] duration-150;
   }
 
   .input-label {
@@ -308,40 +297,61 @@
     @apply inline-block animate-spin rounded-full border-2 border-current border-t-transparent;
   }
 
-  /* Animation Utilities */
+  /* Animation Utilities — CSS transitions with @starting-style for interruptible entry */
   .fade-in {
-    animation: fadeIn 0.3s ease-out forwards;
+    opacity: 1;
+    transition: opacity 250ms var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+    }
   }
 
   .fade-in-up {
-    animation: fadeInUp 0.4s ease-out forwards;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 300ms var(--ease-out), transform 300ms var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+      transform: translateY(10px);
+    }
   }
 
   .slide-in-left {
-    animation: slideInLeft 0.3s ease-out forwards;
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity 250ms var(--ease-out), transform 250ms var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+      transform: translateX(-10px);
+    }
   }
 
   .slide-in-right {
-    animation: slideInRight 0.3s ease-out forwards;
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity 250ms var(--ease-out), transform 250ms var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+      transform: translateX(10px);
+    }
   }
 
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+  @media (hover: hover) and (pointer: fine) {
+    .btn:active {
+      transform: scale(0.97);
+    }
   }
 
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  @keyframes slideInLeft {
-    from { opacity: 0; transform: translateX(-10px); }
-    to { opacity: 1; transform: translateX(0); }
-  }
-
-  @keyframes slideInRight {
-    from { opacity: 0; transform: translateX(10px); }
-    to { opacity: 1; transform: translateX(0); }
+  @media (prefers-reduced-motion: reduce) {
+    .fade-in,
+    .fade-in-up,
+    .slide-in-left,
+    .slide-in-right {
+      transition-duration: 0ms;
+    }
   }
 }

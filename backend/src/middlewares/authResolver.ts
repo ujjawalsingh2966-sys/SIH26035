@@ -1,14 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { config } from '../config/env';
 import { logger } from '../utils/logger';
-import { accountStore } from '../services/AccountService';
+import { resolveSession } from '../services/SessionService';
 
 // Type extension for Express Request
 declare global {
   namespace Express {
     interface Request {
       user?: { id: string; role: string; email: string };
+      sessionId?: string;
     }
   }
 }
@@ -21,14 +20,11 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as { id: string; role: string; email: string };
-    if (decoded.role === 'Business') {
-      const account = accountStore.findById(decoded.id);
-      if (!account || !account.active || account.role !== 'Business' || account.email !== decoded.email) {
-        return res.status(401).json({ success: false, error: 'Account is unavailable. Please sign in again.' });
-      }
-    }
-    req.user = decoded;
+    const session = resolveSession(token);
+    if (!session) return res.status(401).json({ success: false, error: 'Session is unavailable. Please sign in again.' });
+    req.user = session.user;
+    req.sessionId = session.sessionId;
+    res.set('Cache-Control', 'no-store');
     next();
   } catch (err) {
     logger.warn('Failed authentication attempt: Invalid token');

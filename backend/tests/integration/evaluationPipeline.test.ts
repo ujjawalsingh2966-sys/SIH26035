@@ -3,10 +3,11 @@ import app from '../../src/app';
 import { testCaseStore, instrumentStore, manufacturerStore, observationStore } from '../../src/repositories';
 import jwt from 'jsonwebtoken';
 import { config } from '../../src/config/env';
+import { testSession } from '../helpers/persistedIdentity';
 
 let server: any;
 
-const technicianToken = jwt.sign({ id: 'tech-eval-1', role: 'Technician', email: 'tech-eval@example.com' }, config.jwtSecret);
+const technicianToken = testSession('tech-eval-1', 'Technician', 'tech-eval@example.com');
 
 beforeAll((done) => {
   server = app.listen(0, () => done());
@@ -59,6 +60,7 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
         e: '5',
         d: '5',
         hasTare: true,
+        weighingUnit: 'g', hasAuxiliaryIndication: false, isGrading: false, softwareControlled: false,
         ...overrides
       })
       .expect(201);
@@ -151,11 +153,12 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
   });
 
   it('rejects an observation outright when the instrument lacks metrological parameters needed to evaluate', async () => {
-    // accuracyClass/e are optional on Instrument until the classification gate is completed
-    // (types/domain.ts) - submitting against such an instrument must fail the request, not
-    // silently persist an observation with no evaluation.
-    const instrument = await createInScopeInstrument({ accuracyClass: undefined, e: undefined });
+    // Explicit legacy fixture: invalid new registrations are now rejected earlier.
+    // Keep the original observation-time safety assertion for existing records.
+    const instrument = await createInScopeInstrument();
     const testCaseId = await createTestCaseInTesting(instrument.id);
+    instrumentStore.saveItem({ ...instrument, accuracyClass: undefined, e: undefined });
+    testCaseStore.saveItem({ ...testCaseStore.findById(testCaseId)!, masterDataSnapshot: undefined });
 
     const obsRes = await request(server)
       .post('/api/v1/observations')
@@ -208,7 +211,7 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
     expect(submitRes.body.error).toContain('not completed evaluation');
   });
 
-  it('full flow: observation input -> Calculation -> Rule -> Compliance -> persisted verdict -> approved report', async () => {
+  it('persists real observation evaluation but never approves or reports a single-row incomplete programme as final', async () => {
     const instrument = await createInScopeInstrument();
     const testCaseId = await createTestCaseInTesting(instrument.id);
 
@@ -224,7 +227,7 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
       .send({ expectedRevision: testCaseStore.findById(testCaseId)!.revision ?? 0 })
       .expect(200);
 
-    const reviewerToken = jwt.sign({ id: 'rev-eval-1', role: 'Reviewer', email: 'rev-eval@example.com' }, config.jwtSecret);
+    const reviewerToken = testSession('rev-eval-1', 'Reviewer', 'rev-eval@example.com');
 
     await request(server)
       .post(`/api/v1/test-cases/${testCaseId}/workflow/start-review`)
@@ -236,17 +239,17 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
       .post(`/api/v1/test-cases/${testCaseId}/workflow/approve`)
       .set('Authorization', `Bearer ${reviewerToken}`)
       .send({ expectedRevision: testCaseStore.findById(testCaseId)!.revision ?? 0 })
-      .expect(200);
+      .expect(409);
 
-    // The report's compliance summary now reflects the real, persisted Compliance Engine
-    // verdict - not the previously hardcoded 'APPROVED' literal.
-    const reportRes = await request(server)
+    await request(server)
       .get(`/api/v1/reports/${testCaseId}/data`)
       .set('Authorization', `Bearer ${reviewerToken}`)
-      .expect(200);
+      .expect(400);
 
-    expect(reportRes.body.data.complianceSummary.overallVerdict).toBe('PASS');
-    expect(reportRes.body.data.complianceSummary.weighing).toBe('PASS');
-    expect(reportRes.body.data.meta.ruleEngineVersion).toBe('OIML-R76-1-2006-CORE-V1.0.0-MVP');
+    const details = await request(server).get(`/api/v1/repository/records/${testCaseId}`)
+      .set('Authorization', `Bearer ${reviewerToken}`).expect(200);
+    expect(details.body.data.programme.overallVerdict).toBe('INCOMPLETE');
+    expect(details.body.data.programme.tests.WEIGHING.status).toBe('PASS');
+    expect(details.body.data.programme.tests.REPEATABILITY.status).toBe('NOT STARTED');
   });
 });

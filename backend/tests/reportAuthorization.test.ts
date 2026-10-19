@@ -2,6 +2,7 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import app from '../src/app';
 import { config } from '../src/config/env';
+import { testSession } from './helpers/persistedIdentity';
 import { auditStore, instrumentStore, observationStore, testCaseStore } from '../src/repositories';
 import { JsonStore } from '../src/repositories/JsonStore';
 import { EvaluationService } from '../src/services/EvaluationService';
@@ -9,7 +10,7 @@ import { ReportService } from '../src/services/ReportService';
 import { AuditRecord, ObservationRecord, TestCaseStatus } from '../src/types/domain';
 
 const token = (id: string, role: string, secret = config.jwtSecret) =>
-  jwt.sign({ id, role, email: `${id}@example.com` }, secret);
+  testSession(id, role, `${id}@example.com`, secret);
 const owner = token('report-owner', 'Technician');
 const other = token('report-other', 'Technician');
 const reviewer = token('report-reviewer', 'Reviewer');
@@ -174,7 +175,8 @@ it('does not expose a generated PDF through direct file paths', async () => {
 it('keeps the repository compliance-summary entry point restricted to authorized records', async () => {
   const response = await request(app).get(`/api/v1/repository/records/${testCaseId}`)
     .set('Authorization', `Bearer ${owner}`).expect(200);
-  expect(response.body.data.complianceSummary.overallVerdict).toBe('PASS');
+    expect(response.body.data.complianceSummary.overallVerdict).toBe('INCOMPLETE');
+    expect(response.body.data.programme.observedOutcome).toBe('PASS');
   jest.clearAllMocks();
   const denied = await request(app).get(`/api/v1/repository/records/${testCaseId}`)
     .set('Authorization', `Bearer ${other}`).expect(403);

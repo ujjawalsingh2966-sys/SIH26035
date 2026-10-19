@@ -1,14 +1,15 @@
 import request from 'supertest';
-import { developmentStaffPassword } from '../helpers/developmentStaffPassword';
+import { developmentStaffPassword, provisionLegacyTestStaff } from '../helpers/developmentStaffPassword';
 import jwt from 'jsonwebtoken';
 import app from '../../src/app';
 import { config } from '../../src/config/env';
+import { testSession } from '../helpers/persistedIdentity';
 import { testCaseStore, instrumentStore, observationStore, auditStore } from '../../src/repositories';
 import { AuditService } from '../../src/services/AuditService';
 import { AuditRecord, TestCaseStatus } from '../../src/types/domain';
 import { JsonStore } from '../../src/repositories/JsonStore';
 
-const token = (id: string, role: string) => jwt.sign({ id, role, email: `${id}@example.com` }, config.jwtSecret);
+const token = testSession;
 const tech = token('tech-workflow', 'Technician');
 const otherTech = token('tech-other', 'Technician');
 const reviewer = token('reviewer-workflow', 'Reviewer');
@@ -52,7 +53,7 @@ beforeEach(() => {
 });
 
 describe('Laboratory correction and review over the real HTTP API', () => {
-  it.each([['Reviewer', reviewer], ['Administrator', admin]])('completes two correction cycles and approval as %s', async (_role, auth) => {
+  it.each([['Reviewer', reviewer], ['Administrator', admin]])('completes two correction cycles but blocks incomplete final approval as %s', async (_role, auth) => {
     await resume().expect(200);
     const original = (await observe().expect(201)).body.data;
     expect(original.evaluation.calculation.Ec.value).toBe('4.5');
@@ -92,9 +93,10 @@ describe('Laboratory correction and review over the real HTTP API', () => {
     await observe().expect(201);
     await workflow('submit', tech).expect(200);
     await workflow('start-review', auth).expect(200);
-    await workflow('approve', auth).expect(200);
-    expect(testCaseStore.findById(testCaseId)!.status).toBe('APPROVED');
-    expect(testCaseStore.findById(testCaseId)!.approvalDate).toBeDefined();
+    const rejected = await workflow('approve', auth).expect(409);
+    expect(rejected.body.error).toContain('INCOMPLETE');
+    expect(testCaseStore.findById(testCaseId)!.status).toBe('UNDER_REVIEW');
+    expect(testCaseStore.findById(testCaseId)!.approvalDate).toBeUndefined();
     const history = (await request(app).get(`/api/v1/test-cases/${testCaseId}/audit`).set('Authorization', `Bearer ${tech}`).expect(200)).body.data;
     expect(history.filter((event: any) => event.action === 'RETURN_FOR_CORRECTION').map((event: any) => event.metadata.reason))
       .toEqual(['Correct the indication', 'Replace the setup observation']);
@@ -109,9 +111,8 @@ describe('Laboratory correction and review over the real HTTP API', () => {
     expect(details.instrument.name).toBe('Workflow Scale');
     expect(details.testCase.laboratoryConditions.temperature).toBe('21');
     expect(details.history).toHaveLength(history.length);
-    // Preserve existing report integrity output without changing report generation.
-    const report = await request(app).get(`/api/v1/reports/${testCaseId}/data`).set('Authorization', `Bearer ${auth}`).expect(200);
-    expect(report.body.data.meta.cryptographicSeal).toMatch(/^[a-f0-9]{64}$/);
+    expect(details.programme.overallVerdict).toBe('INCOMPLETE');
+    await request(app).get(`/api/v1/reports/${testCaseId}/data`).set('Authorization', `Bearer ${auth}`).expect(400);
   });
 
   it('does not change an observation or audit trail when correction evaluation fails', async () => {
@@ -236,7 +237,8 @@ describe('Laboratory correction and review over the real HTTP API', () => {
     expect(AuditService.getHistoryForTest(testCaseId).some(event => event.action === 'EVIDENCE_ADDED')).toBe(true);
   });
 
-  it('uses distinct stable demo account identities and retains the default technician ownership', async () => {
+  it('uses explicitly provisioned stable identities and retains legacy technician ownership', async () => {
+    await provisionLegacyTestStaff();
     const login = async (email: string) => (await request(app).post('/api/v1/auth/login').send({ email, password: developmentStaffPassword() }).expect(200)).body.data;
     const owner = await login('technician@example.com');
     const officer = await login('reviewer@example.com');

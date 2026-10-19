@@ -1,0 +1,16 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const ts = require('typescript');
+const moduleUnderTest = { exports: {} };
+vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname,'../lib/native.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{module:moduleUnderTest,exports:moduleUnderTest.exports});
+const { blankNativeReading, nativeFormIssue } = moduleUnderTest.exports;
+const valid=()=>({procedureId:'REPEATABILITY',series:'EIGHTY_PERCENT',conditions:{},evidenceReference:'Synthetic calibration record',readings:[{sequence:1,unit:'g',load:'12000',indication:'12000',additionalWeights:'2.5',unloadedIndication:'0'}]});
+test('new procedure rows never invent observed quantities or confirmations',()=>{const row=blankNativeReading(1,'g');for(const key of ['load','indication','additionalWeights','unloadedIndication'])assert.equal(row[key],'');assert.equal(row.unloadedAtRest,false)});
+test('native form feedback permits partial sampling for server INCOMPLETE assessment',()=>assert.equal(nativeFormIssue(valid(),true),undefined));
+for(const [name,patch] of [['invalid unit',{unit:'lb'}],['NaN',{indication:'NaN'}],['exponent',{load:'1e3'}],['missing load',{load:''}],['negative extra weights',{additionalWeights:'-1'}],['missing unloaded reading',{unloadedIndication:''}]])test(`native form rejects ${name}`,()=>{const input=valid();Object.assign(input.readings[0],patch);assert.equal(typeof nativeFormIssue(input,true),'string')});
+test('evidence reference cannot be blank',()=>assert.equal(typeof nativeFormIssue({...valid(),evidenceReference:' '},true),'string'));
+test('zero form does not invent or require an unloaded repeatability field',()=>{const input=valid();delete input.readings[0].unloadedIndication;assert.equal(nativeFormIssue(input,false),undefined)});
+test('zero native form rejects an empty measurement set',()=>assert.equal(typeof nativeFormIssue({...valid(),readings:[]},false),'string'));

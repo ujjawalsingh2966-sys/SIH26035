@@ -4,10 +4,16 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
+    ".next-dev/types/**/*.ts",
+    ".next-production/types/**/*.ts",
     ".next-browser-review/types/**/*.ts",
     ".next-contrast-review/types/**/*.ts",
     ".next-business-accounts/types/**/*.ts",
-    ".next-snapshot-review/types/**/*.ts"
+    ".next-snapshot-review/types/**/*.ts",
+    ".next-p0-review/types/**/*.ts",
+    ".next-p1-review/types/**/*.ts",
+    ".next-p2-review/types/**/*.ts",
+    ".next-p3-review/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

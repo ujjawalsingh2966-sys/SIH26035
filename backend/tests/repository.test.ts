@@ -4,12 +4,13 @@ import { testCaseStore, instrumentStore, manufacturerStore, auditStore } from '.
 import { Instrument, Manufacturer, TestCase } from '../src/types/domain';
 import jwt from 'jsonwebtoken';
 import { config } from '../src/config/env';
+import { testSession } from './helpers/persistedIdentity';
 import { AuditService } from '../src/services/AuditService';
 
 let server: any;
 
-const technicianToken = jwt.sign({ id: 'tech123', role: 'Technician', email: 'tech@example.com' }, config.jwtSecret);
-const reviewerToken = jwt.sign({ id: 'rev123', role: 'Reviewer', email: 'rev@example.com' }, config.jwtSecret);
+const technicianToken = testSession('tech123', 'Technician', 'tech@example.com');
+const reviewerToken = testSession('rev123', 'Reviewer', 'rev@example.com');
 
 beforeAll((done) => {
   server = app.listen(0, () => {

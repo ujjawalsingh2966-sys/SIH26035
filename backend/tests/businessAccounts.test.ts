@@ -9,7 +9,8 @@ import { logger } from '../src/utils/logger';
 import { auditStore, testCaseStore } from '../src/repositories';
 import { evidenceStore } from '../src/services/EvidenceService';
 import { developmentStaffId } from '../src/services/DevelopmentStaffIdentity';
-import { developmentStaffPassword } from './helpers/developmentStaffPassword';
+import { developmentStaffPassword, provisionLegacyTestStaff } from './helpers/developmentStaffPassword';
+import { issueSession } from '../src/services/SessionService';
 
 const password = 'Synthetic-account-pass-123';
 const demoPassword = developmentStaffPassword();
@@ -17,7 +18,7 @@ const input = { name: 'Synthetic Business', email: 'business-account@example.tes
 const register = (body: Record<string, unknown> = input) => request(app).post('/api/v1/auth/register').send(body);
 const login = (body: Record<string, unknown> = { email: input.email, password }) => request(app).post('/api/v1/auth/login').send(body);
 
-beforeEach(() => accountStore.clear());
+beforeEach(async () => { accountStore.clear(); await provisionLegacyTestStaff(); });
 afterEach(() => jest.restoreAllMocks());
 
 it('registers only Business, normalizes identity, persists salted hashes and omits private fields', async () => {
@@ -85,7 +86,7 @@ it('rejects wrong passwords, inactive/missing Business identities and malformed 
   await login({ email: input.email, password: 'wrong-password' }).expect(401);
   accountStore.saveItem({ ...account, active: false });
   await login().expect(401);
-  const token = jwt.sign({ id: account.id, email: account.email, role: 'Business' }, config.jwtSecret);
+  const token = issueSession(account);
   await request(app).get('/api/v1/auth/me').set('Authorization', `Bearer ${token}`).expect(401);
   accountStore.clear();
   await request(app).get('/api/v1/auth/me').set('Authorization', `Bearer ${token}`).expect(401);
@@ -114,12 +115,12 @@ it.each([
   ['get', '/repository/search'], ['get', '/repository/dashboard']
 ])('denies Business access to staff operation %s %s', async (method, endpoint) => {
   const account = createBusinessAccount(input.name, input.email, password);
-  const token = jwt.sign({ id: account.id, role: account.role, email: account.email }, config.jwtSecret);
+  const token = issueSession(account);
   const response = await (request(app) as any)[method](`/api/v1${endpoint}`).set('Authorization', `Bearer ${token}`).expect(403);
   expect(response.body).toEqual({ success: false, error: 'Forbidden: Insufficient permissions' });
 });
 
-it('keeps existing staff demo roles, stable identities and /me behavior intact', async () => {
+it('keeps explicitly provisioned legacy roles, stable identities and /me behavior intact', async () => {
   const guide = fs.readFileSync(require('path').resolve(__dirname, '../../docs/LABORATORY_REVIEW_WORKFLOW.md'), 'utf8');
   const accounts = [...guide.matchAll(/\| (Technician|Reviewer|Administrator) \| `([^`]+)`/g)];
   expect(accounts).toHaveLength(3);

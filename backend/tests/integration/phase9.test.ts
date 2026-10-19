@@ -55,7 +55,7 @@ describe('Phase 9 Workflow and RBAC Integration', () => {
   });
 
   describe('Happy Path Workflow', () => {
-    it('Should complete a full transition cycle successfully', () => {
+    it('allows review but blocks final approval when the programme is undetermined', () => {
       const tc = setupMockTest('TESTING', 'tech-1');
       setupEvaluatedObservation(tc.id);
 
@@ -68,17 +68,16 @@ describe('Phase 9 Workflow and RBAC Integration', () => {
       expect(underReview.status).toBe('UNDER_REVIEW');
       expect(underReview.reviewerId).toBe('rev-1');
       
-      // Approve
-      const approved = WorkflowService.approve(tc.id, 'rev-1', 'Reviewer');
-      expect(approved.status).toBe('APPROVED');
-      expect(approved.approvalDate).toBeDefined();
+      expect(() => WorkflowService.approve(tc.id, 'rev-1', 'Reviewer')).toThrow('INCOMPLETE');
+      expect(tc.status).toBe('UNDER_REVIEW');
+      expect(tc.approvalDate).toBeUndefined();
 
       // Check Audit Trail
       const history = AuditService.getHistoryForTest(tc.id);
-      expect(history.length).toBe(3);
+      expect(history.length).toBe(2);
       expect(history[0].action).toBe('SUBMIT_FOR_REVIEW');
       expect(history[1].action).toBe('START_REVIEW');
-      expect(history[2].action).toBe('APPROVE');
+      expect(history.some(event => event.action === 'APPROVE')).toBe(false);
     });
 
     it('Should allow return for correction and resubmission', () => {

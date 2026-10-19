@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Scale, Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react'
@@ -14,15 +14,17 @@ const roles = [
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('technician@example.com')
-  const [password, setPassword] = useState('dev-demo-password')
+  const pending = useRef(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [selectedRole, setSelectedRole] = useState('technician')
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (pending.current) return
+    pending.current = true
     setError('')
     setLoading(true)
 
@@ -32,17 +34,30 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       })
-      const data = await res.json()
-
-      if (data.success) {
-        localStorage.setItem('nawi_token', data.data.token)
-        router.push(data.data.user.role === 'Business' ? '/account' : '/dashboard')
-      } else {
-        setError(data.error || 'Login failed. Please check your credentials.')
+      let data: { success?: boolean; error?: string; errors?: Array<{ msg?: string }>; data?: { token?: string; user?: { role?: string } } }
+      try {
+        data = await res.json()
+      } catch {
+        setError(res.ok ? 'The W8LAB server returned an unreadable response.' : `Sign in failed (HTTP ${res.status}). Please try again.`)
+        return
       }
-    } catch (err) {
-      setError('Network error. Please check your connection.')
+
+      if (!res.ok || !data.success || !data.data?.token || !data.data.user?.role) {
+        if (res.status === 401) {
+          setError('Invalid email or password.')
+        } else {
+          const validation = data.errors?.map(item => item.msg).filter(Boolean).join(' ')
+          setError(data.error || validation || `Sign in failed (HTTP ${res.status}). Please try again.`)
+        }
+        return
+      }
+
+      localStorage.setItem('nawi_token', data.data.token)
+      router.push(data.data.user.role === 'Business' ? '/applications' : '/dashboard')
+    } catch {
+      setError('Unable to reach the W8LAB server. Check your connection and try again.')
     } finally {
+      pending.current = false
       setLoading(false)
     }
   }
@@ -67,24 +82,24 @@ export default function LoginPage() {
                   <Scale className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight">ANCRS</h1>
+                  <h1 className="text-3xl font-bold tracking-tight">W8LAB</h1>
                   <p className="text-indigo-200 text-sm font-medium">Legal Metrology Platform</p>
                 </div>
               </div>
 
               <div className="space-y-6">
                 <h2 className="text-2xl font-semibold leading-tight">
-                  Automated NAWI Compliance & Reporting System
+                  Weighing Instrument Testing & Inspection
                 </h2>
                 <p className="text-indigo-100/80 leading-relaxed text-sm">
-                  A comprehensive platform for Non-Automatic Weighing Instruments verification, testing, and certification under OIML R76 standards.
+                  Laboratory measurement entry, evaluation and reporting for Non-Automatic Weighing Instruments. Sign in does not establish compliance.
                 </p>
               </div>
 
               <div className="mt-8 pt-8 border-t border-white/20">
                 <div className="flex items-center gap-2 text-sm text-indigo-200">
                   <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                    <div className="w-2 h-2 bg-emerald-400 rounded-full" />
                     System Operational
                   </div>
                 </div>
@@ -93,23 +108,14 @@ export default function LoginPage() {
 
             {/* Role selection preview */}
             <div className="relative z-10 mt-8">
-              <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300 mb-3">Select Your Role</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300 mb-3">Laboratory staff access</p>
               <div className="space-y-2">
                 {roles.map((role) => (
                   <div
                     key={role.id}
-                    onClick={() => {
-                      setSelectedRole(role.id)
-                      setEmail(`${role.id === 'officer' ? 'reviewer' : role.id}@example.com`)
-                    }}
-                    className={`
-                      flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200
-                      ${selectedRole === role.id
-                        ? 'bg-white text-indigo-900 shadow-lg shadow-indigo-900/20 scale-[1.02]'
-                        : 'bg-white/5 hover:bg-white/10 text-indigo-100'}
-                    `}
+                    className="flex items-center gap-3 p-3 rounded-xl bg-white/5 text-indigo-100"
                   >
-                    <role.icon className={`w-5 h-5 ${selectedRole === role.id ? 'text-indigo-600' : 'text-indigo-300'}`} />
+                    <role.icon className="w-5 h-5 text-indigo-300" />
                     <div>
                       <p className="text-sm font-medium">{role.name}</p>
                       <p className="text-xs opacity-80">{role.description}</p>
@@ -126,13 +132,14 @@ export default function LoginPage() {
               <div className="mb-8">
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Sign In</h2>
                 <p className="text-slate-500 dark:text-slate-400 text-sm">
-                  Access the ANCRS platform to perform verifications
+                  Access W8LAB to perform instrument verifications
                 </p>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Use your administrator-provisioned account. Your saved role determines access.</p>
               </div>
 
-              <form className="space-y-5" onSubmit={handleLogin}>
+              <form className="space-y-5" onSubmit={handleLogin} aria-busy={loading}>
                 {error && (
-                  <div className="p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl flex items-start gap-3">
+                  <div role="alert" className="p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl flex items-start gap-3">
                     <div className="w-5 h-5 text-rose-600 mt-0.5 flex-shrink-0">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10" />
@@ -145,11 +152,14 @@ export default function LoginPage() {
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label htmlFor="staff-email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                     Email Address
                   </label>
                   <input
+                    id="staff-email"
                     type="email"
+                    autoComplete="username"
+                    maxLength={254}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="technician@example.com"
@@ -159,12 +169,15 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label htmlFor="staff-password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                     Password
                   </label>
                   <div className="relative">
                     <input
+                      id="staff-password"
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      maxLength={128}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
@@ -175,6 +188,7 @@ export default function LoginPage() {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? (
                         <EyeOff className="w-5 h-5" />
@@ -185,20 +199,12 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center gap-2 text-slate-600 dark:text-slate-400 cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
-                    Remember me
-                  </label>
-                  <a href="#" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 font-medium">
-                    Forgot password?
-                  </a>
-                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-300">Need access or a password reset? Contact your laboratory administrator.</p>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-500 disabled:cursor-not-allowed text-white font-medium rounded-xl shadow-lg shadow-indigo-600/20 hover:shadow-xl hover:shadow-indigo-600/30 transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0"
+                  className="btn btn-primary btn-lg w-full rounded-xl shadow-lg shadow-indigo-600/20 hover:shadow-xl hover:shadow-indigo-600/30 disabled:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-100"
                 >
                   {loading ? (
                     <>
@@ -221,7 +227,7 @@ export default function LoginPage() {
 
               <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between text-xs text-slate-500">
-                  <p>PHASE 5 FOUNDATION DEMO</p>
+                  <p>STAFF ACCESS · W8LAB</p>
                   <div className="flex items-center gap-2">
                     <span className="flex items-center gap-1">
                       <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
@@ -238,7 +244,7 @@ export default function LoginPage() {
 
       {/* Footer */}
       <div className="p-4 text-center text-xs text-slate-400">
-        <p>ANCRS &copy; 2024 - Automated NAWI Compliance & Reporting System</p>
+        <p>W8LAB &copy; 2024 - Weighing Instrument Testing & Inspection</p>
         <p className="mt-1">Legal Metrology Verification Platform</p>
       </div>
     </div>

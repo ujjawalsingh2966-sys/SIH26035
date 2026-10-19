@@ -1,5 +1,11 @@
 # Laboratory review and correction workflow
 
+P3 update (18 October 2026): `/test-cases/[id]/programme` provides frozen applicability/sampling and native repeatability/zero-accuracy evidence. Recorded native series must be complete before review submission; completed FAIL series may be reviewed. Unsupported mandatory programme sections continue to block final approval. Existing owner, assigned-reviewer, revision and correction policies below remain in force. See [P3 API, coverage and verification](P3_OIML_APPLICABILITY_AND_NATIVE_TESTS.md).
+
+P2 update (18 October 2026): instrument creation now selects a real active manufacturer, validates declared units/specifications and freezes manufacturer/instrument metadata when creating a case. Instrument-wise history reuses the same case authorization below. Linked technical specifications cannot be edited. No legacy records are migrated and native finalization remains blocked by P0. See [current master-data API](MASTER_DATA_API.md) and [P2 implementation report](P2_MANUFACTURER_INSTRUMENT_MANAGEMENT.md).
+
+Current-status note (P1, 18 October 2026): the historical demo login/setup below is obsolete. Use [persistent staff provisioning and session setup](P1_STAFF_AUTHENTICATION_2026-10-18.md); there is no demo password or email-selected role. P0 also blocks final approval for incomplete/undetermined programmes, so the historical single-row approval walkthrough is not a current approval test. The confirmed permission policy and correction/assignment rules below remain in force. Historical results are retained as historical evidence, not current claims.
+
 Local implementation and verification notes, 16 October 2026. Workspace: `C:\Users\singu\New folder (2)\SIH26035`, branch `main`. No branch change, pull, commit, push, PR, merge or deployment was performed.
 
 ## Confirmed policy

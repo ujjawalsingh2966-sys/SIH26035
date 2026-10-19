@@ -44,6 +44,7 @@ export default function InstrumentsPage() {
   const canCreate = canCreateInstrument(useDashboardSession())
   const [instruments, setInstruments] = useState<Instrument[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterClass, setFilterClass] = useState<string>('all')
 
@@ -55,9 +56,10 @@ export default function InstrumentsPage() {
           headers: { 'Authorization': `Bearer ${token}` }
         })
         const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Instrument directory unavailable')
         setInstruments(data.data || [])
       } catch (error) {
-        console.error('Failed to fetch instruments:', error)
+        setError(error instanceof Error ? error.message : 'Instrument directory unavailable')
       } finally {
         setLoading(false)
       }
@@ -103,6 +105,7 @@ export default function InstrumentsPage() {
 
   return (
     <div className="space-y-6 animate-fade-in-up">
+      {error && <p role="alert" className="rounded border border-rose-500 p-4">{error} <button className="underline" onClick={() => window.location.reload()}>Retry</button></p>}
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -127,6 +130,7 @@ export default function InstrumentsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
+              aria-label="Search instruments"
               placeholder="Search instruments..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -243,16 +247,16 @@ export default function InstrumentsPage() {
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Link
-                          href={`/test-cases?instrumentId=${instrument.id}`}
+                          href={`/instruments/${instrument.id}/history`}
                           className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
                           title="View Test Cases"
                         >
                           <CheckCircle2 className="w-4 h-4" />
                         </Link>
                         <Link
-                          href="/instruments"
+                          href={`/instruments/${instrument.id}`}
                           className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
-                          title="Edit"
+                          title="View instrument details"
                         >
                           <Edit className="w-4 h-4" />
                         </Link>

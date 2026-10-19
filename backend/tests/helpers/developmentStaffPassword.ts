@@ -1,10 +1,17 @@
-import fs from 'fs';
-import path from 'path';
-
-// Reuse the existing development-only default without publishing it in fixtures.
-export function developmentStaffPassword(): string {
-  const source = fs.readFileSync(path.resolve(__dirname, '../../src/routes/auth.routes.ts'), 'utf8');
-  const match = source.match(/if\s*\(password !== '([^']+)'\)/);
-  if (!match) throw new Error('Development staff login changed; update the local test fixture setup');
-  return match[1];
+import { randomBytes } from 'crypto';
+import { hashStaffPassword, staffStore, StaffRole } from '../../src/services/StaffService';
+import { developmentStaffId } from '../../src/services/DevelopmentStaffIdentity';
+// Test-only credentials, freshly generated in memory. No production/demo default.
+const password = randomBytes(24).toString('base64url');
+let hash: Promise<string> | undefined;
+export function developmentStaffPassword(): string { return password; }
+export async function provisionLegacyTestStaff() {
+  const passwordHash = await (hash ||= hashStaffPassword(password));
+  for (const [email, role] of [['technician@example.com', 'Technician'], ['technician2@example.com', 'Technician'],
+    ['reviewer@example.com', 'Reviewer'], ['admin@example.com', 'Administrator']]) {
+    if (staffStore.findAll().some(item => item.email === email)) continue;
+    const now = new Date().toISOString();
+    staffStore.saveItem({ id: developmentStaffId(email), name: 'Synthetic staff', email, role: role as StaffRole, passwordHash,
+      active: true, credentialVersion: 0, createdAt: now, updatedAt: now, createdBy: 'test-fixture' });
+  }
 }

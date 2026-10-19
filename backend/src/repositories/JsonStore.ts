@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import 'dotenv/config';
 
 // Tests must never open the application's data directory, even when DATA_DIR is set.
 const DATA_DIR = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined
@@ -11,7 +12,7 @@ export class JsonStore<T extends { id: string }> {
   private collection: Map<string, T> = new Map();
   private filePath: string;
 
-  constructor(filename: string, private strictPersistence = false) {
+  constructor(filename: string, private strictPersistence = false, private storageName = 'Account') {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
@@ -28,18 +29,19 @@ export class JsonStore<T extends { id: string }> {
           this.collection.set(item.id, item);
         }
       } catch (err) {
-        if (this.strictPersistence) throw new Error('Account storage is unavailable');
+        if (this.strictPersistence) throw new Error(`${this.storageName} storage is unavailable`);
         console.error(`Failed to load ${this.filePath}`, err);
       }
     }
   }
 
-  private save() {
+  private save(requireDurable = false) {
+    const strict = this.strictPersistence || requireDurable;
     try {
       const data = Array.from(this.collection.values());
-      if (this.strictPersistence) {
-        // Accounts must not appear saved after a failed write. Keep the existing
-        // laboratory persistence behavior unchanged in this extraction.
+      if (strict) {
+        // Strict records must not appear saved after a failed write. Keep the
+        // existing laboratory persistence behavior unchanged.
         const temporaryPath = `${this.filePath}.tmp`;
         fs.writeFileSync(temporaryPath, JSON.stringify(data, null, 2), { encoding: 'utf-8', mode: 0o600 });
         fs.renameSync(temporaryPath, this.filePath);
@@ -47,7 +49,12 @@ export class JsonStore<T extends { id: string }> {
         fs.writeFileSync(this.filePath, JSON.stringify(data, null, 2), 'utf-8');
       }
     } catch (err) {
-      if (this.strictPersistence) throw new Error('Account storage is unavailable');
+      if (strict) {
+        // Log only the operation/error code, never collection contents or credentials.
+        const failure = err as NodeJS.ErrnoException;
+        console.error(`${this.storageName} persistence failed: ${failure.syscall || 'write'} ${failure.code || 'ERROR'}`);
+        throw new Error(`${this.storageName} storage is unavailable`);
+      }
       console.error(`Failed to save ${this.filePath}`, err);
     }
   }
@@ -60,11 +67,11 @@ export class JsonStore<T extends { id: string }> {
     return this.collection.get(id);
   }
 
-  saveItem(item: T): T {
+  saveItem(item: T, requireDurable = false): T {
     const previous = this.collection.get(item.id);
     this.collection.set(item.id, item);
     try {
-      this.save();
+      this.save(requireDurable);
     } catch (err) {
       if (previous) this.collection.set(item.id, previous);
       else this.collection.delete(item.id);

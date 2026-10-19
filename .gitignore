@@ -3,6 +3,8 @@ node_modules/
 dist/
 coverage/
 .next/
+.next-dev/
+.next-production/
 out/
 .env
 .env*
@@ -27,6 +29,11 @@ data/*.json
 .next-browser-review/
 .next-contrast-review/
 .next-business-accounts/
+.next-business-applications/
+.next-p0-review/
+.next-p1-review/
+.next-p2-review/
+.next-p3-review/
 .next-snapshot-review/
 artifacts/browser-review/
 

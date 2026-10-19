@@ -1,5 +1,7 @@
 # Phase 13 - Requirement Coverage
 
+Current-status correction (P3, 18 October 2026): this historical SRS table is not evidence of complete statutory coverage. Use the [current R76 applicability/coverage register](../P3_OIML_APPLICABILITY_AND_NATIVE_TESTS.md), which separates implemented native repeatability/zero accuracy from unsupported and undetermined technical, weighing, eccentricity, tare, influence and electronic procedures. Whole-programme final approval remains blocked; passing fixture tests is not full regulatory conformity.
+
 ## Overview
 This document ensures 100% bi-directional requirement coverage mapped against the Master SRS definitions.
 

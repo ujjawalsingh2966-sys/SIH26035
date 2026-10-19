@@ -4,6 +4,10 @@ import { ComplianceEngine } from '../compliance/engine';
 import { ObservationState, Unit } from '../calculations/types';
 import { InstrumentContext, RuleEvaluationContext } from '../rules/types';
 import { Instrument, ObservationEvaluation, ObservationType } from '../types/domain';
+import { finiteDecimal, isMassUnit } from '../calculations/unitConversion';
+import { createHash } from 'crypto';
+
+export const EVALUATION_VERSION = 'W8LAB-OBSERVATION-2';
 
 // Maps the persistence-layer ObservationType (used by observationRoutes) to the
 // RuleEngine's TestType identifiers (used by rules/engine.ts checkTestScope).
@@ -22,6 +26,18 @@ export interface RawObservationInput {
   additionalWeights: string;
   unit?: Unit;
   zeroError?: string;
+}
+
+export function observationFingerprint(instrument: Instrument, observation: RawObservationInput, initial: boolean): string {
+  return createHash('sha256').update(JSON.stringify({
+    instrumentId: instrument.id, accuracyClass: instrument.accuracyClass, e: instrument.e,
+    d: instrument.d, max: instrument.maxCapacity, min: instrument.minCapacity,
+    isManual: instrument.isManual, isElectronic: instrument.isElectronic,
+    isSingleRange: instrument.isSingleRange, hasTare: instrument.hasTare,
+    testType: observation.testType, load: observation.load, indication: observation.indication,
+    additionalWeights: observation.additionalWeights, unit: observation.unit ?? 'g',
+    zeroError: observation.zeroError ?? '0', initial,
+  })).digest('hex');
 }
 
 /**
@@ -44,19 +60,25 @@ export class EvaluationService {
       );
     }
 
-    const testType = TEST_TYPE_MAP[observation.testType];
-    if (!testType) {
+    if (typeof observation.testType !== 'string' || !Object.prototype.hasOwnProperty.call(TEST_TYPE_MAP, observation.testType)) {
       throw new Error(`Unsupported observation testType: ${observation.testType}`);
     }
+    const testType = TEST_TYPE_MAP[observation.testType];
 
-    const unit: Unit = observation.unit || 'g';
+    const unit = observation.unit === undefined ? 'g' : observation.unit;
+    if (!isMassUnit(unit)) throw new Error('Unsupported mass unit. Use mg, g, kg or t');
+    if (!finiteDecimal(eValue, 'Verification interval e').gt(0)) {
+      throw new Error('Verification interval e must be positive');
+    }
 
     const state: ObservationState = {
       L: { value: observation.load, unit },
       I: { value: observation.indication, unit },
       deltaL: { value: observation.additionalWeights, unit },
-      e: { value: eValue, unit },
-      E0: { value: observation.zeroError || '0', unit }
+      // Instrument parameters use the existing gram storage convention. Changing
+      // an observation's display unit must not relabel the instrument interval.
+      e: { value: eValue, unit: 'g' },
+      E0: { value: observation.zeroError === undefined ? '0' : observation.zeroError, unit }
     };
 
     // 1. Calculation Engine - P, E, Ec, m (unchanged, reused as-is)
@@ -96,6 +118,8 @@ export class EvaluationService {
     });
 
     return {
+      calculationVersion: EVALUATION_VERSION,
+      inputFingerprint: observationFingerprint(instrument, observation, isInitialVerification),
       calculation,
       rulePackage,
       compliance,

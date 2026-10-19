@@ -54,9 +54,11 @@ async function fill(suffix) {
   await page.goto(`${frontend}/instruments/new`);
   await page.getByRole('button', { name: 'CONTINUE TO METADATA', exact: true }).click();
   for (const [placeholder, value] of Object.entries({
-    'Name (e.g. Sartorius 200)': activeName, Model: 'BROWSER-SUBMISSION', 'Serial Number': 'SYNTHETIC-SHARED-SERIAL',
+    'Name (e.g. Sartorius 200)': activeName, Model: 'BROWSER-SUBMISSION', 'Serial Number': `SYNTHETIC-${epoch}-${suffix}`,
     'Max Capacity (String strictly)': '15000', 'Min Capacity': '100', 'Verification Scale Interval (e)': '5', 'Actual Scale Interval (d)': '5',
   })) await field(placeholder).fill(value);
+  const makers = await page.evaluate(async url => (await fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('nawi_token')}` } })).json(), `${backend}/api/v1/manufacturers`);
+  await page.getByLabel('Manufacturer', { exact: true }).selectOption(makers.data[0].id);
   return activeName;
 }
 function persisted(name = activeName) {
@@ -180,7 +182,7 @@ async function main() {
     const response = page.waitForResponse(reply => reply.url() === `${backend}/api/v1/instruments`);
     await submit().click();
     expect((await response).status()).toBe(400);
-    await expect(page.getByRole('alert').filter({ hasText: 'name:' })).toBeVisible();
+    await expect(page.getByRole('alert').filter({ hasText: 'Instrument name is required' })).toBeVisible();
     await expect(field('Name (e.g. Sartorius 200)')).toHaveValue(name);
     await expect(field('Name (e.g. Sartorius 200)')).toBeEnabled();
     await expect(submit()).toBeEnabled();

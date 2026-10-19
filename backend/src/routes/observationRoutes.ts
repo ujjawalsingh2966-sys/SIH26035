@@ -8,6 +8,8 @@ import { ObservationRecord } from '../types/domain';
 import { EvaluationService } from '../services/EvaluationService';
 import { AuditService } from '../services/AuditService';
 import { requireTestCaseAccess } from '../middlewares/testCaseAccess';
+import { caseMasterData } from '../services/MasterDataService';
+import { nativeProgrammeIssue } from '../services/NativeApplicability';
 
 export const observationRoutes = Router();
 
@@ -21,8 +23,8 @@ observationRoutes.post(
   '/',
   requireRole(['Technician']),
   body('testCaseId').notEmpty(),
-  body('testType').isIn(['WEIGHING', 'ECCENTRICITY', 'REPEATABILITY', 'TARE', 'ZERO_SETTING']),
-  body('sequence').isNumeric(),
+  body('testType').isString().bail().isIn(['WEIGHING', 'ECCENTRICITY', 'REPEATABILITY', 'TARE', 'ZERO_SETTING']),
+  body('sequence').isInt({ min: 1 }).toInt(),
   body('load').isString().notEmpty(),
   body('indication').isString().notEmpty(),
   body('additionalWeights').isString().notEmpty(),
@@ -44,8 +46,10 @@ observationRoutes.post(
     if (testCase.status !== 'TESTING') {
       return res.status(403).json({ success: false, error: 'Cannot modify observations unless test case is in TESTING status' });
     }
+    const programmeError = testCase.nativeProgramme === undefined ? undefined : nativeProgrammeIssue(testCase.nativeProgramme);
+    if (programmeError) return res.status(409).json({ success: false, error: programmeError });
 
-    const instrument = instrumentStore.findById(testCase.instrumentId);
+    const { instrument } = caseMasterData(testCase);
     if (!instrument) {
       return res.status(404).json({ success: false, error: 'Instrument not found for this test case' });
     }
@@ -119,12 +123,15 @@ observationRoutes.put('/:id', requireRole(['Technician']),
     if (testCase.status !== 'TESTING') {
       return res.status(403).json({ success: false, error: 'Corrections require TESTING status' });
     }
-    const instrument = instrumentStore.findById(testCase.instrumentId);
+    const programmeError = testCase.nativeProgramme === undefined ? undefined : nativeProgrammeIssue(testCase.nativeProgramme);
+    if (programmeError) return res.status(409).json({ success: false, error: programmeError });
+    const { instrument } = caseMasterData(testCase);
     if (!instrument) return res.status(404).json({ success: false, error: 'Instrument not found' });
     const updated: ObservationRecord = {
       ...previous,
       load: req.body.load, indication: req.body.indication, additionalWeights: req.body.additionalWeights,
-      unit: req.body.unit ?? previous.unit, zeroError: req.body.zeroError ?? previous.zeroError
+      unit: req.body.unit === undefined ? previous.unit : req.body.unit,
+      zeroError: req.body.zeroError === undefined ? previous.zeroError : req.body.zeroError
     };
     try {
       updated.evaluation = EvaluationService.evaluateObservation(instrument, updated, testCase.isInitialVerification !== false);
@@ -151,6 +158,8 @@ observationRoutes.delete('/:id', requireRole(['Technician']), (req, res) => {
   if (testCase.status !== 'TESTING') {
     return res.status(403).json({ success: false, error: 'Corrections require TESTING status' });
   }
+  const programmeError = testCase.nativeProgramme === undefined ? undefined : nativeProgrammeIssue(testCase.nativeProgramme);
+  if (programmeError) return res.status(409).json({ success: false, error: programmeError });
   AuditService.recordEvent({
     testCaseId: testCase.id, actorId: req.user!.id, actorRole: req.user!.role,
     action: 'OBSERVATION_DELETED', metadata: { observationId: previous.id, previous }

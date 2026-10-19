@@ -2,11 +2,12 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import app from '../src/app';
 import { config } from '../src/config/env';
+import { testSession } from './helpers/persistedIdentity';
 import { auditStore, instrumentStore, testCaseStore } from '../src/repositories';
 import { ReportService } from '../src/services/ReportService';
 import { TestCaseStatus } from '../src/types/domain';
 
-const auth = (id: string, role: string) => jwt.sign({ id, role, email: `${id}@example.com` }, config.jwtSecret);
+const auth = testSession;
 const owner = auth('listing-owner', 'Technician');
 const other = auth('listing-other', 'Technician');
 const reviewer = auth('listing-reviewer', 'Reviewer');
