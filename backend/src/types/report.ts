@@ -1,7 +1,8 @@
-import { TestCase, ObservationRecord } from './domain';
+import { TestCase, ObservationRecord, Manufacturer } from './domain';
 import { EvidenceRecord } from './evidence';
 import { MetrologicalQuantity } from '../calculations/types';
 import { ComplianceVerdict } from '../compliance/types';
+import type { ProgrammeAssessment } from '../services/ProgrammeAssessment';
 
 /**
  * Presentation-layer view of a single observation's already-persisted
@@ -46,8 +47,12 @@ export interface ReportDataset {
 
   testDetails: TestCase;
   instrumentDetails?: any;
+  manufacturerDetails?: Manufacturer;
+  metadataSource: 'SNAPSHOT' | 'LEGACY_LIVE_REFERENCE';
   observations: ObservationRecord[];
   evidence: EvidenceRecord[];
+  programme: ProgrammeAssessment;
+  nativeTests?: import('./native').NativeTestRecord[];
 
   // One entry per observation that has completed evaluation, built from the persisted
   // ObservationEvaluation (see ObservationEvaluationView) - this is the metrological

@@ -1,5 +1,31 @@
 # Architecture & Technical Design
 
+## P3.1 validation boundary — 18 October 2026
+
+Native profile inputs are constructed from runtime-validated primitive enums rather than a string-coerced input cast. `nativePurposePolicy` explicitly dispatches the three supported purposes; other values cannot fall back to verification. Before native evaluation, read/assessment, review submission or approval, persisted programme validity is checked against its supported version, profile, frozen instrument fingerprint and canonical decisions. Invalid declarations are retained as history, not migrated: an authorized safe view supplies `programmeError`, INCOMPLETE/UNDETERMINED assessment and no native write controls. Generic observation mutations also reject invalid native declarations. Report headings use assessed metadata while raw saved traces remain unchanged; final status cannot become FINAL for invalid history.
+
+Laboratory observation/evidence/status API enums require actual strings before membership checks, and direct generic evaluation checks primitive own-map keys before dispatch. `native:audit` performs an operator-scoped read-only JSON audit. Existing valid ruleset/fingerprints, metrology formulas, JSON architecture and staff/case policies remain unchanged. See [repair design, API behavior and verification](docs/P3_1_VALIDATION_AND_DISPATCH_REPAIR.md). No P4 procedures are implemented by this extension.
+
+## Implemented P3 extension — 18 October 2026
+
+`NativeApplicability` freezes purpose, explicit instrument characteristics, clause decisions, sampling and ruleset against the P2 case snapshot. `NativeEvaluation` evaluates prescribed repeatability series and mechanism-specific zero accuracy using existing decimal normalization/MPE support. `nativeTests.json` uses the existing strict JSON atomic-write/rollback path; programme and native revisions request durable saves without changing ordinary legacy write behavior. `NativeAssessment` feeds the existing shared final-approval/report gate, preserving completed failed series independently of incomplete programme coverage.
+
+Authenticated `/api/v1/native/:id` routes reuse existing case RBAC and optimistic revisions. Only the owning Technician in TESTING writes native observations; programme declarations may be corrected before evidence and freeze afterwards. The `/test-cases/[id]/programme` UI provides declaration, applicability, sampling, actual observation capture and traces. Reports include frozen programme/native evidence in their data and seal; unsupported mandatory groups still block final approval. JSON remains single-writer and has no cross-collection transaction guarantee. See [P3 coverage, formulas, API and verification](docs/P3_OIML_APPLICABILITY_AND_NATIVE_TESTS.md). This extension does not establish full R76-1 or R76-2 conformity.
+
+## Implemented architecture — P2, 18 October 2026
+
+This current-status section takes precedence over the historical proposal below. W8LAB is a Next.js/Express local prototype with single-writer JSON persistence, not an offline PWA, database ledger, signed certification service or production-hardened deployment. P1 persisted staff/session checks and P0 fail-closed completeness remain unchanged.
+
+`MasterDataService` owns registration validation, normalized identity checks, creator/Administrator edits, optimistic revisions and non-destructive manufacturer archive. The existing `JsonStore` strict atomic-write/rollback option now also applies to manufacturers/instruments. Existing files, IDs and records are retained with additive optional schema fields; no database migration or backfill runs.
+
+Instrument declared decimal strings/unit are retained; canonical Max/Min/e/d are grams and n is derived. Registration support and evaluator support are separate. Class I, auxiliary and grading metadata do not authorize native testing. Existing calculation and MPE rules are unchanged.
+
+At case creation the server deep-copies both master records into a versioned `masterDataSnapshot`. `caseMasterData()` is the shared resolver for observation evaluation, programme assessment, repository joins/detail and report output. Existing cases without snapshots continue to resolve legacy references; API edits that could change their historical metadata are blocked. Any instrument with a linked case is immutable through the registration API. Manufacturer edits may affect current catalogs but never new-case snapshots. Reports read saved observation evaluations, not recalculated readings, and include resolved metadata and provenance. See [API contract](docs/MASTER_DATA_API.md) and [P2 evidence/limitations](docs/P2_MANUFACTURER_INSTRUMENT_MANAGEMENT.md).
+
+Catalog access remains shared among staff, while history and case/report access reuse the existing record policy. Creation remains Technician-only for instruments; manufacturer creation is Technician/Administrator; editing unlinked master records is creator Technician/Administrator. Reviewer assignment, separation of duties and native final-approval blockers are not loosened.
+
+## Historical proposed design (not implementation claims)
+
 ## 1. High-Level Architecture Overview
 To meet the stringent regulatory, mathematical, and offline-capability requirements, a separated and modular layered architecture is proposed. Considering the offline-first requirement for laboratory networks, a client-site cached Progressive Web App (PWA) backed by a mature state-machine driven backend fits the use case.
 

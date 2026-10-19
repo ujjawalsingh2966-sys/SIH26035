@@ -1,5 +1,17 @@
 # NAWI Compliance Automation - Documentation Index
 
+## Current implementation evidence (takes precedence over historical completion claims)
+
+- [P4A partial implementation, coverage and blocking browser prerequisite](P4A_METROLOGICAL_PERFORMANCE.md)
+- [Versioned native programme API (P3 / partial P4A)](NATIVE_PROGRAMME_API.md)
+- [P3.1 validation/dispatch repair and current verified readiness](P3_1_VALIDATION_AND_DISPATCH_REPAIR.md)
+- [P4 original prerequisite findings and preliminary coverage gaps (blocker repaired by P3.1)](P4_COMPLETE_OIML_TEST_COVERAGE.md)
+- [P3 applicability, sampling, native tests and calculation coverage](P3_OIML_APPLICABILITY_AND_NATIVE_TESTS.md)
+- [P2 Manufacturer & Instrument Management](P2_MANUFACTURER_INSTRUMENT_MANAGEMENT.md)
+- [Current master-data API](MASTER_DATA_API.md)
+- [P1 Staff Authentication](P1_STAFF_AUTHENTICATION_2026-10-18.md)
+- [P0 Stabilization & Integrity](P0_STABILIZATION_2026-10-18.md)
+
 ## Core Specifications
 - [Master SRS](srs.md)
 - [OIML R 76-1:2006 Metrological Traceability](phase-13/REGULATORY_TRACEABILITY_AUDIT.md)

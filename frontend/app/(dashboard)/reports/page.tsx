@@ -115,7 +115,8 @@ function ReportsIndex({ session }: { session: Session }) {
     <div className="card space-y-6 p-6 text-slate-900 dark:text-slate-100">
       <div>
         <h1 className="text-2xl text-slate-900 dark:text-slate-100">Reports</h1>
-        <p className="mt-2">Approved laboratory reports available to your account.</p>
+        <p className="mt-2">Saved approved laboratory records available to your account.</p>
+        <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">A saved approval state alone does not establish compliance. Incomplete or undetermined programmes export only as PROTOTYPE / INCOMPLETE, never FINAL.</p>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Prototype / Pending Official Template Confirmation</p>
       </div>
       <form onSubmit={event => { event.preventDefault(); setFilters(current => ({ query: search.trim(), page: 1, refresh: current.refresh + 1 })) }} className="flex flex-col gap-3 sm:flex-row sm:items-end">

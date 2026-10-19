@@ -14,7 +14,7 @@ evidenceRoutes.post(
   '/',
   requireRole(['Technician']),
   body('testCaseId').isString().notEmpty(),
-  body('testType').isIn(['WEIGHING', 'ECCENTRICITY', 'REPEATABILITY', 'TARE', 'ZERO_SETTING', 'GENERAL']),
+  body('testType').isString().bail().isIn(['WEIGHING', 'ECCENTRICITY', 'REPEATABILITY', 'TARE', 'ZERO_SETTING', 'GENERAL']),
   body('description').isString().notEmpty(),
   body('fileName').isString().notEmpty(),
   body('mimeType').isString().notEmpty(),

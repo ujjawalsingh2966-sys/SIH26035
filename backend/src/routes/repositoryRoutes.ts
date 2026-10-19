@@ -5,6 +5,8 @@ import { AuditService } from '../services/AuditService';
 import { EvidenceService } from '../services/EvidenceService';
 import { testCaseStore, instrumentStore, manufacturerStore } from '../repositories';
 import { ReportService } from '../services/ReportService';
+import { assessStoredProgramme } from '../services/ProgrammeAssessment';
+import { caseMasterData } from '../services/MasterDataService';
 
 export const repositoryRoutes = Router();
 
@@ -63,8 +65,7 @@ repositoryRoutes.get('/records/:testCaseId', requireRole(['Technician', 'Reviewe
       return res.status(403).json({ success: false, error: 'Unauthorized to view this record' });
     }
 
-    const instrument = instrumentStore.findById(testCase.instrumentId);
-    const manufacturer = instrument ? manufacturerStore.findById(instrument.manufacturerId) : null;
+    const { instrument, manufacturer, source } = caseMasterData(testCase);
 
     // Historical contexts from Audit
     const history = AuditService.getHistoryForTest(testCaseId);
@@ -89,9 +90,11 @@ repositoryRoutes.get('/records/:testCaseId', requireRole(['Technician', 'Reviewe
         testCase,
         instrument,
         manufacturer,
+        metadataSource: source,
         history,
         evidence,
-        complianceSummary
+        complianceSummary,
+        programme: assessStoredProgramme(testCase)
       }
     });
   } catch (err: any) {

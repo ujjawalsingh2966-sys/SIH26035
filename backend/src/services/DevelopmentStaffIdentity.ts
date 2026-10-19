@@ -2,7 +2,8 @@ import { createHash } from 'crypto';
 import { auditStore, testCaseStore } from '../repositories';
 import { evidenceStore } from './EvidenceService';
 
-// Preserve the existing development identity mapping and documented staff setup.
+// Legacy ownership lookup ONLY: registration reservations and explicit operator
+// adoption. Never used to authenticate, issue sessions, or choose a staff role.
 export const developmentStaffId = (email: string) => email === 'technician@example.com'
   ? 'dev-user-01' : `dev-${createHash('sha256').update(email).digest('hex').slice(0, 24)}`;
 

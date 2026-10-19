@@ -10,6 +10,7 @@ export interface TestCase {
 export interface Instrument {
   id: string; name: string; model: string; serialNumber: string; accuracyClass?: string
   maxCapacity?: string; minCapacity?: string; e?: string; d?: string
+  n?: string; softwareIdentification?: string; typeApprovalMark?: string
 }
 interface Quantity { value: string; unit: string }
 export interface Observation {
@@ -31,8 +32,14 @@ export interface Evidence {
   sizeBytes: number; uploadedBy: string; uploadedAt: string; fileData?: string
 }
 export interface LaboratoryRecord {
-  testCase: TestCase; instrument?: Instrument; manufacturer?: { name: string }
+  testCase: TestCase; instrument?: Instrument; manufacturer?: { name: string; address?: string; identifier?: string }
+  metadataSource?: 'SNAPSHOT' | 'LEGACY_LIVE_REFERENCE'
   history: AuditRecord[]; evidence: Evidence[]
+  programme?: {
+    complete: boolean; applicability: 'DETERMINED' | 'UNDETERMINED'
+    overallVerdict: 'PASS' | 'FAIL' | 'INCOMPLETE'; observedOutcome: string; issues: string[]
+    tests: Record<ObservationType, { status: string; reason?: string; observations: number }>
+  }
 }
 
 export const statusLabel = (status: string) => status.replace(/_/g, ' ')
@@ -60,6 +67,11 @@ export async function laboratoryApi<T>(path: string, options: RequestInit = {}):
     cache: 'no-store',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...options.headers }
   })
+  if (response.status === 401) {
+    localStorage.removeItem('nawi_token')
+    window.dispatchEvent(new Event('w8lab-session-invalid'))
+    throw new Error('Your session has ended. Please sign in again.')
+  }
   const result = await response.json()
   if (!response.ok || !result.success) {
     throw new Error(result.error || result.errors?.map((error: { path?: string; msg: string }) => `${error.path || 'Request'}: ${error.msg}`).join('; ') || `Request failed (${response.status})`)

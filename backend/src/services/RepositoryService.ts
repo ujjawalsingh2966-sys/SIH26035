@@ -1,5 +1,6 @@
 import { testCaseStore, instrumentStore, manufacturerStore, auditStore } from '../repositories';
 import { TestCase, Instrument, Manufacturer, TestCaseStatus } from '../types/domain';
+import { caseMasterData } from './MasterDataService';
 
 export interface SearchFilters {
   query?: string; // Search across testId, instrument model, manufacturer
@@ -58,9 +59,8 @@ export class RepositoryService {
 
     // Join Instrument and Manufacturer mapping to filter further
     let listings: RepositoryListing[] = filtered.map(tc => {
-      const instrument = instrumentStore.findById(tc.instrumentId) || null;
-      const manufacturer = instrument ? (manufacturerStore.findById(instrument.manufacturerId) || null) : null;
-      return { testCase: tc, instrument, manufacturer };
+      const { instrument, manufacturer } = caseMasterData(tc);
+      return { testCase: tc, instrument: instrument || null, manufacturer: manufacturer || null };
     });
 
     if (filters.manufacturer) {

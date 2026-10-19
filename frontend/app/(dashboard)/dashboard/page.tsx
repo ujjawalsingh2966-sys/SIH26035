@@ -74,8 +74,8 @@ export default function DashboardPage() {
 
         setInstruments(instrumentsData)
         setTestCases(testCasesData)
-      } catch (error) {
-        console.error('Failed to load dashboard data:', error)
+      } catch {
+        // silently degrade — dashboard shows empty state
       } finally {
         setLoading(false)
       }
@@ -129,7 +129,7 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+          <span className="spinner w-12 h-12 border-4 border-indigo-200 border-t-indigo-600" />
           <p className="text-slate-500 dark:text-slate-400 font-medium">Loading dashboard...</p>
         </div>
       </div>

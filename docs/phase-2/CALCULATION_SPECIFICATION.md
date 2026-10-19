@@ -1,5 +1,13 @@
 # Calculation Specification
 
+## Current P4A note — 19 October 2026
+
+The [P4A report](../P4A_METROLOGICAL_PERFORMANCE.md) documents local versioned performance calculations, exact nominal sampling, decimal normalization, zero correction, independent examples and supported/unsupported profiles. **P4A is partial and browser verification is blocked**; this note is not a compliance/completion claim. P3 calculations and historical results retain their own ruleset. Remaining unsupported/undetermined programme requirements still prevent FINAL approval. The historical specification below is not proof of implemented coverage.
+
+P3.1 validation update: native purpose/indication/receptor values must be actual supported primitive strings at request and calculation boundaries. Purpose dispatch is exhaustive; invalid persisted programmes cannot be evaluated or finalized and are not silently reinterpreted as verification. Generic observation test-type dispatch is also strict. This repair does not alter P/E, MPE, spread or zero limits. See [validation contracts and independent regression evidence](../P3_1_VALIDATION_AND_DISPATCH_REPAIR.md).
+
+Current P3 scope: see [native methodology, independent results and coverage](../P3_OIML_APPLICABILITY_AND_NATIVE_TESTS.md). The generic formulas below remain historical base calculations, not a complete test programme. Native repeatability compares individual uncorrected E values and their spread; it does not subtract a separately measured E0 between repetitions. Zero accuracy uses its own 0.25e limit and mechanism-specific conditions. P0/P3 normalize observation units independently of the instrument e stored in grams, with 100-digit decimal precision. Incomplete/unsupported procedures cannot produce overall PASS or final approval.
+
 This specification dictates the absolute, unalterable formulae that future backend rule engines must map verbatim. All operations must utilize arbitrary-precision decimals.
 
 ## 1. Primary Digital Error Calculations

@@ -262,7 +262,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
             <textarea id="correction-reason" value={reason} disabled={busy} onChange={event => setReason(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white p-3 text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100" />
             <div className="flex flex-wrap gap-3">
               <button disabled={busy || !!loadError || !reason.trim()} onClick={() => transition('return')} className="btn bg-amber-700 text-white disabled:opacity-50">Return for Correction</button>
-              <button disabled={busy || !!loadError} onClick={() => transition('approve')} className="btn bg-emerald-700 text-white disabled:opacity-50">Approve Record</button>
+              <button disabled={busy || !!loadError || !record?.programme?.complete} aria-describedby="programme-status" onClick={() => transition('approve')} className="btn bg-emerald-700 text-white disabled:opacity-50">Approve Record</button>
             </div>
           </div>
         )}
@@ -270,6 +270,15 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
         {isOwner && ['READY_FOR_REVIEW', 'UNDER_REVIEW', 'APPROVED'].includes(testCase.status) && <p>Changes are locked while this record is submitted, under review, or approved.</p>}
         {busy && <p role="status">Saving…</p>}
       </div>
+
+      <section className="card p-5 space-y-3 text-slate-900 dark:text-slate-100" aria-labelledby="programme-status">
+        <h2 id="programme-status" className="text-xl">Test programme: {record?.programme?.overallVerdict || 'INCOMPLETE'}</h2>
+        <Link className="inline-flex min-h-11 items-center rounded border border-indigo-500 px-4 py-2 font-semibold text-indigo-800 dark:text-indigo-200" href={`/test-cases/${params.id}/programme`}>Applicability, sampling & native tests</Link>
+        <p className="text-sm">Applicability: {record?.programme?.applicability || 'UNDETERMINED'}. Recorded observation outcome: {record?.programme?.observedOutcome || 'UNDETERMINED'}.</p>
+        {!record?.programme?.complete && <p className="font-medium text-amber-800 dark:text-amber-200">Final approval is blocked until required information, applicable tests and sampling are complete. Missing or unsupported tests are not automatically not applicable.</p>}
+        <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700 dark:text-slate-200">{record?.programme?.issues.map(issue => <li key={issue}>{issue}</li>)}</ul>
+        {record?.programme && <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Object.entries(record.programme.tests).map(([type, test]) => <div key={type} className="rounded border border-slate-200 p-3 dark:border-slate-700"><dt className="text-sm font-medium">{statusLabel(type)}</dt><dd className="mt-1 text-sm">{test.status} · {test.observations} observation(s)</dd>{test.reason && <dd className="mt-1 text-xs text-slate-600 dark:text-slate-300">{test.reason}</dd>}</div>)}</dl>}
+      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Test Case Info & Environment */}
@@ -298,6 +307,9 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                 <span className="font-medium text-slate-900 dark:text-white">{record?.instrument?.accuracyClass || 'Not recorded'}</span>
               </div>
               <p className="text-slate-700 dark:text-slate-200">Manufacturer: {record?.manufacturer?.name || 'Not recorded'}</p>
+              <p className="break-words text-slate-700 dark:text-slate-200">Manufacturer address: {record?.manufacturer?.address || 'Not recorded'}</p>
+              <p className="break-words text-slate-700 dark:text-slate-200">Manufacturer identifier: {record?.manufacturer?.identifier || 'Not recorded'}</p>
+              <p className="text-slate-700 dark:text-slate-200">n: {record?.instrument?.n || 'Not recorded'} · Metadata: {record?.metadataSource || 'Not recorded'}</p>
               <p className="text-slate-700 dark:text-slate-200">Max: {record?.instrument?.maxCapacity || '—'} g · Min: {record?.instrument?.minCapacity || '—'} g</p>
               <p className="text-slate-700 dark:text-slate-200">e: {record?.instrument?.e || '—'} g · d: {record?.instrument?.d || '—'} g</p>
             </div>
@@ -402,7 +414,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
                 Test Case Approved
               </h3>
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                This laboratory record is approved and locked. Individual saved verdicts are shown alongside each observation.
+                This record retains its saved approval state and is locked. {record?.programme?.complete ? 'Programme completeness has been verified.' : 'Its incomplete programme does not qualify for a final compliance report.'} Individual saved verdicts remain visible.
               </p>
             </div>
           )}

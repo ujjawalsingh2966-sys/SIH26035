@@ -9,6 +9,8 @@ export interface Manufacturer {
   name: string;
   address: string;
   identifier: string; // Statutory applicant identifier
+  revision?: number; active?: boolean; createdBy?: string; createdAt?: string; updatedAt?: string;
+  history?: { action: string; actorId: string; timestamp: string; previous?: { name: string; address: string; identifier: string } }[];
 }
 
 export interface Instrument {
@@ -32,6 +34,12 @@ export interface Instrument {
   e?: string;
   d?: string;
   hasTare?: boolean;
+  weighingUnit?: 'g'; // Canonical persisted metrological values remain grams.
+  n?: string;
+  hasAuxiliaryIndication?: boolean; isGrading?: boolean; softwareControlled?: boolean;
+  softwareIdentification?: string; typeApprovalMark?: string; technicalNotes?: string;
+  declaredSpecifications?: { unit: Unit; maxCapacity: string; minCapacity: string; e: string; d: string };
+  revision?: number; createdBy?: string; createdAt?: string; updatedAt?: string;
 }
 
 export type TestExecutionStatus = 'NOT STARTED' | 'IN PROGRESS' | 'COMPLETE' | 'NOT APPLICABLE';
@@ -51,6 +59,7 @@ export interface LaboratoryConditions {
 }
 
 export interface TestCase {
+  nativeProgramme?: import('./native').NativeProgramme;
   id: string;
   instrumentId: string;
   technicianId: string;
@@ -70,6 +79,16 @@ export interface TestCase {
   // Phase 8 wiring: whether this test case is an initial verification (default)
   // or an in-service re-verification (MPE is scaled 2x by the Rule Engine).
   isInitialVerification?: boolean;
+  masterDataSnapshot?: { version: 'W8LAB-MASTER-1'; capturedAt: string; instrument: Instrument; manufacturer: Manufacturer };
+
+  // Server-owned, versioned applicability determination. No current public API
+  // accepts this field; absence means coverage is undetermined, never "all passed".
+  programmeDetermination?: {
+    standard: 'OIML R 76-1:2006';
+    determinedBy: string;
+    determinedAt: string;
+    requirements: { testType: ObservationType; minimumObservations: number }[];
+  };
 }
 
 export type ObservationType = 'WEIGHING' | 'ECCENTRICITY' | 'REPEATABILITY' | 'TARE' | 'ZERO_SETTING';
@@ -80,6 +99,9 @@ export type ObservationType = 'WEIGHING' | 'ECCENTRICITY' | 'REPEATABILITY' | 'T
  * This is the explainability trace referenced by FR-REP-02/FR-REV-02.
  */
 export interface ObservationEvaluation {
+  // Legacy evaluations are retained, but are not evidence of the corrected pipeline.
+  calculationVersion?: string;
+  inputFingerprint?: string;
   calculation: CalculationResult;
   rulePackage: RuleEvaluationPackage;
   compliance: ComplianceResult;

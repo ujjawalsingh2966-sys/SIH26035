@@ -43,7 +43,7 @@ export default function BusinessAccountForm({ register = false }: { register?: b
           return
         }
         localStorage.setItem('nawi_token', result.data.token)
-        router.push('/account')
+        router.push('/applications')
       }
     } catch {
       setError('Unable to reach the server. Please check your connection and try again.')
@@ -56,7 +56,7 @@ export default function BusinessAccountForm({ register = false }: { register?: b
   return (
     <div className="mesh-background min-h-screen flex items-center justify-center p-4">
       <section className="w-full max-w-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-6 sm:p-10">
-        <div className="flex items-center gap-3 mb-6"><Scale className="text-indigo-600 dark:text-indigo-400" /><span className="font-bold text-xl">ANCRS</span></div>
+        <div className="flex items-center gap-3 mb-6" aria-label="W8LAB"><Scale className="text-indigo-600 dark:text-indigo-400" /><span className="font-bold text-xl">W8LAB</span></div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{register ? 'Create a Business account' : 'Business sign in'}</h1>
         {created ? (
           <div className="mt-6 space-y-4">

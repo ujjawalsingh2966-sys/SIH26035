@@ -5,6 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "start": "node dist/index.js",
+    "staff:bootstrap": "node dist/cli/staffBootstrap.js",
+    "native:audit": "node dist/cli/nativeProfileAudit.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "test": "jest",

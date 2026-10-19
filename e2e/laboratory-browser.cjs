@@ -16,6 +16,7 @@ const output = path.join(runRoot, `attempt-${new Date().toISOString().replace(/[
 const frontend = process.env.W8LAB_BROWSER_FRONTEND || 'http://127.0.0.1:3010';
 const backend = process.env.W8LAB_BROWSER_BACKEND || 'http://127.0.0.1:4001';
 const api = `${backend}/api/v1`;
+const legacyCaseId = process.env.W8LAB_BROWSER_LEGACY_CASE || 'p0-legacy-approved';
 const accounts = {
   technician: process.env.W8LAB_BROWSER_TECHNICIAN,
   reviewer: process.env.W8LAB_BROWSER_REVIEWER,
@@ -23,6 +24,14 @@ const accounts = {
   otherTechnician: process.env.W8LAB_BROWSER_OTHER_TECHNICIAN,
 };
 const password = process.env.W8LAB_BROWSER_PASSWORD;
+const rolePasswords = {
+  technician: process.env.W8LAB_BROWSER_TECHNICIAN_PASSWORD || password,
+  reviewer: process.env.W8LAB_BROWSER_REVIEWER_PASSWORD || password,
+  administrator: process.env.W8LAB_BROWSER_ADMINISTRATOR_PASSWORD || password,
+  otherTechnician: process.env.W8LAB_BROWSER_OTHER_TECHNICIAN_PASSWORD || password,
+};
+const businessPassword = crypto.randomBytes(24).toString('base64url');
+const businessEmail = `full-run-business-${crypto.randomUUID()}@example.test`;
 if (!password || Object.values(accounts).some(value => !value)) throw new Error('Supply the five documented W8LAB_BROWSER account/password environment variables.');
 for (const origin of [frontend, backend]) {
   if (!['127.0.0.1', 'localhost'].includes(new URL(origin).hostname)) throw new Error('Only local origins are permitted.');
@@ -34,7 +43,7 @@ const scenarios = [];
 const traffic = [];
 const consoleEvents = [];
 const blockedExternal = [];
-const redacted = [password, ...Object.values(accounts)];
+const redacted = [password, ...Object.values(rolePasswords), businessPassword, businessEmail, ...Object.values(accounts)];
 let currentScenario = 'setup';
 let activePage;
 let browser;
@@ -65,7 +74,7 @@ async function screenshot(page, name) {
   if (!page || page.isClosed()) return undefined;
   const file = `${name.replace(/[^a-z0-9-]/gi, '-').toLowerCase()}.png`;
   const mask = [page.locator('input[type=email],input[type=password]')];
-  for (const email of Object.values(accounts)) mask.push(page.getByText(email, { exact: true }));
+  for (const secret of redacted) mask.push(page.getByText(secret, { exact: true }));
   await page.screenshot({ path: path.join(output, file), fullPage: true, mask, animations: 'disabled', timeout: 30000 });
   return file;
 }
@@ -125,7 +134,7 @@ async function login(page, role) {
   activePage = page;
   await page.goto(`${frontend}/login`);
   await page.locator('input[type=email]').fill(accounts[role]);
-  await page.locator('input[type=password]').fill(password);
+  await page.locator('input[type=password]').fill(rolePasswords[role]);
   await page.getByRole('button', { name: 'Sign In', exact: true }).click();
   await page.waitForURL('**/dashboard');
   await expect(page.locator('nav')).toBeVisible();
@@ -166,13 +175,32 @@ async function fillInstrument(page, suffix) {
     'Verification Scale Interval (e)': '5', 'Actual Scale Interval (d)': '5',
   };
   for (const [placeholder, value] of Object.entries(values)) await page.getByPlaceholder(placeholder, { exact: true }).fill(value);
-  await page.locator('select').selectOption('III');
+  await page.getByLabel('Accuracy Class', { exact: true }).selectOption('III');
+  const manufacturers = await browserFetch(page, '/manufacturers');
+  const ownMaker = manufacturers.body.data.find(item => item.identifier === 'FULL-LAB-P2');
+  const maker = ownMaker || (await browserFetch(page, '/manufacturers', 'POST', { name: 'Full laboratory maker', address: 'Synthetic laboratory site', identifier: 'FULL-LAB-P2' })).body.data;
+  await page.getByRole('button', { name: 'Refresh manufacturers', exact: true }).click();
+  await expect(page.locator('#instrument-manufacturer option').filter({ hasText: maker.name })).toBeAttached();
+  await page.getByLabel('Manufacturer', { exact: true }).selectOption(maker.id);
   return values['Name (e.g. Sartorius 200)'];
 }
 async function fillObservation(page, indication = '5005', weights = '3') {
   await page.getByPlaceholder('e.g., 100.00', { exact: true }).fill('5000');
   await page.getByPlaceholder('e.g., 100.02', { exact: true }).fill(indication);
   await page.getByPlaceholder('e.g., 0.00', { exact: true }).fill(weights);
+}
+async function fillBusinessApplication(page) {
+  await page.getByLabel('Business name').fill('Full Runner Business');
+  await page.getByLabel('Installation address').fill('21 Isolated Workflow Road');
+  await page.getByLabel('Instrument name').fill('Full runner scale');
+  await page.getByLabel('Model').fill('FULL-APP-1');
+  await page.getByLabel('Serial number').fill('FULL-APP-SERIAL-1');
+  await page.getByLabel('Accuracy class').selectOption('III');
+  await page.getByLabel('Maximum capacity, Max (g)').fill('30000');
+  await page.getByLabel('Minimum capacity, Min (g)').fill('200');
+  await page.getByLabel('Verification interval, e (g)').fill('10');
+  await page.getByLabel('Scale interval, d (g)').fill('10');
+  await page.getByLabel('I confirm this instrument matches the supported profile.').check();
 }
 async function savedState(page, state) {
   await expect.poll(() => record()?.status).toBe(state);
@@ -189,6 +217,7 @@ async function main() {
   const reviewer = await newPage('reviewer');
   const other = await newPage('second-technician');
   const admin = await newPage('administrator');
+  const business = await newPage('business');
 
   await scenario('Technician signs in through the login form', async () => {
     await login(technician, 'technician');
@@ -197,7 +226,7 @@ async function main() {
   await scenario('Queue loading indicator and empty state use a real delayed request', async () => {
     activePage = technician;
     await technician.route(`${api}/test-cases`, async route => { await new Promise(resolve => setTimeout(resolve, 900)); await route.continue(); });
-    await technician.getByRole('link', { name: 'Evaluation Queue', exact: true }).click();
+    await technician.getByRole('link', { name: /Evaluation queue/i }).click();
     await expect(technician.getByText('Loading evaluation queue...')).toBeVisible();
     await expect(technician.getByText('No test cases found')).toBeVisible();
     await technician.unroute(`${api}/test-cases`);
@@ -268,7 +297,7 @@ async function main() {
     await expect(technician.getByRole('button', { name: 'Record Observation', exact: true })).toHaveCount(0);
     const result = await browserFetch(technician, '/observations', 'POST', { testCaseId: caseId, testType: 'WEIGHING', sequence: 1, load: '5000', indication: '5005', additionalWeights: '3' });
     expect(result.status).toBe(403);
-    expect(collection('observations')).toHaveLength(0);
+    expect(collection('observations').filter(item => item.testCaseId === caseId)).toHaveLength(0);
   });
   await scenario('Start Testing duplicate clicks produce one transition', async () => {
     need(record()?.status === 'DRAFT', 'A draft case is needed.');
@@ -300,7 +329,7 @@ async function main() {
     await technician.getByRole('button', { name: 'Record Observation', exact: true }).click();
     expect((await response).status()).toBe(400);
     await expect(technician.getByRole('alert').filter({ hasText: 'Evaluation failed' })).toBeVisible();
-    expect(collection('observations')).toHaveLength(0);
+    expect(collection('observations').filter(item => item.testCaseId === caseId)).toHaveLength(0);
     await screenshot(technician, 'invalid-observation-feedback');
   });
   await scenario('Valid observation persists exact backend evaluation with duplicate-click protection', async () => {
@@ -322,6 +351,51 @@ async function main() {
     await technician.reload();
     await expect(technician.locator('tbody tr')).toContainText('Ec: 4.5 g');
     await expect(technician.locator('.card').filter({ has: technician.getByRole('heading', { name: 'Laboratory Conditions', exact: true }) }).locator('input').first()).toHaveValue('20');
+  });
+  await scenario('P0 gram/kilogram form entries produce identical exact calculations and verdicts', async () => {
+    const gram = collection('observations').find(item => item.id === observationId).evaluation;
+    await technician.getByLabel(/^Unit/).selectOption('kg');
+    await technician.getByPlaceholder('e.g., 100.00', { exact: true }).fill('5');
+    await technician.getByPlaceholder('e.g., 100.02', { exact: true }).fill('5.005');
+    await technician.getByPlaceholder('e.g., 0.00', { exact: true }).fill('0.003');
+    const saved = await clickMutation(technician, 'Record Observation', '/observations', 'POST', true);
+    expect(saved.data.unit).toBe('kg');
+    expect(saved.data.evaluation.calculation).toEqual(gram.calculation);
+    expect(saved.data.evaluation.rulePackage).toEqual(gram.rulePackage);
+    expect(saved.data.evaluation.compliance.verdict).toBe('PASS');
+    await expect(technician.locator('tbody tr').filter({ hasText: '5.005' })).toContainText('Ec: 4.5 g');
+    await screenshot(technician, 'p0-equivalent-units');
+    await clickMutation(technician, 'Delete observation 2', `/observations/${saved.data.id}`, 'DELETE');
+    await technician.getByLabel(/^Unit/).selectOption('g');
+  });
+  await scenario('P0 invalid unit/conditions APIs reject without mutation or audit', async () => {
+    const before = JSON.stringify({ case: record(), observations: collection('observations'), audit: collection('audit') });
+    expect((await browserFetch(technician, '/observations', 'POST', { testCaseId: caseId, testType: 'WEIGHING', sequence: 2,
+      load: '5', indication: '5.005', additionalWeights: '0.003', unit: 'lb' })).status).toBe(400);
+    expect((await browserFetch(technician, `/test-cases/${caseId}/laboratory-conditions`, 'PUT',
+      { temperature: '20', humidity: '101', pressure: '1013', expectedRevision: record().revision })).status).toBe(400);
+    expect(JSON.stringify({ case: record(), observations: collection('observations'), audit: collection('audit') })).toBe(before);
+  });
+  await scenario('P0 completeness is persistent and readable on narrow light/dark keyboard layouts', async () => {
+    const panel = technician.locator('section[aria-labelledby="programme-status"]');
+    try {
+      await technician.setViewportSize({ width: 390, height: 844 });
+      for (const theme of ['light', 'dark']) {
+        await technician.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+        await expect(panel).toContainText('INCOMPLETE');
+        await expect(panel).toContainText('NOT STARTED');
+        await expect(panel).toContainText('UNDETERMINED');
+        await technician.getByLabel(/^Unit/).focus();
+        await technician.keyboard.press('ArrowDown');
+        await expect(technician.getByLabel(/^Unit/)).toHaveValue('kg');
+        await technician.getByLabel(/^Unit/).selectOption('g');
+        await screenshot(technician, `p0-mobile-${theme}`);
+        expect(await technician.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      }
+    } finally {
+      await technician.setViewportSize({ width: 1440, height: 1100 });
+      await technician.emulateMedia({ colorScheme: 'light', reducedMotion: 'no-preference' });
+    }
   });
   await scenario('Available evidence renders and downloads from real persisted evidence', async () => {
     need(record()?.status === 'TESTING', 'Testing state required for supported evidence upload API.');
@@ -361,7 +435,7 @@ async function main() {
   });
   await scenario('Reviewer finds submitted record and sees instrument, conditions, evaluations, evidence', async () => {
     await login(reviewer, 'reviewer');
-    await reviewer.getByRole('link', { name: 'Evaluation Queue', exact: true }).click();
+    await reviewer.getByRole('link', { name: /Evaluation queue/i }).click();
     const row = reviewer.locator('tbody tr').filter({ hasText: caseId });
     await expect(row).toContainText('READY FOR REVIEW');
     await row.getByRole('link', { name: 'Open Workspace' }).click();
@@ -436,25 +510,29 @@ async function main() {
     expect(record().status).toBe('READY_FOR_REVIEW');
     await screenshot(staleReview, 'stale-tab-feedback');
   });
-  await scenario('Reviewer starts new review and approves corrected record once', async () => {
+  await scenario('Reviewer starts new review but incomplete programme cannot receive final approval', async () => {
     await openWorkspace(reviewer);
     await expect(reviewer.locator('tbody tr')).toContainText('Ec: 0 g');
     await clickMutation(reviewer, 'Start Review', `/test-cases/${caseId}/workflow/start-review`);
     const endpoint = `/test-cases/${caseId}/workflow/approve`;
     const before = count('POST', `/api/v1${endpoint}`);
-    await clickMutation(reviewer, 'Approve Record', endpoint, 'POST', true);
-    await savedState(reviewer, 'APPROVED');
+    await expect(reviewer.getByRole('button', { name: 'Approve Record', exact: true })).toBeDisabled();
+    await expect(reviewer.locator('#programme-status')).toContainText('INCOMPLETE');
+    const rejected = await browserFetch(reviewer, endpoint, 'POST', { expectedRevision: record().revision });
+    expect(rejected.status).toBe(409);
+    expect(rejected.body.error).toContain('programme is INCOMPLETE');
+    await savedState(reviewer, 'UNDER_REVIEW');
     expect(count('POST', `/api/v1${endpoint}`) - before).toBe(1);
-    expect(collection('audit').filter(item => item.testCaseId === caseId && item.action === 'APPROVE')).toHaveLength(1);
+    expect(collection('audit').filter(item => item.testCaseId === caseId && item.action === 'APPROVE')).toHaveLength(0);
   });
-  await scenario('Reload retains APPROVED state, technician locks, feedback and full review history', async () => {
+  await scenario('Reload retains UNDER_REVIEW state, technician locks, feedback and full review history', async () => {
     await openWorkspace(technician);
-    await savedState(technician, 'APPROVED');
+    await savedState(technician, 'UNDER_REVIEW');
     for (const name of ['Record Observation', 'Save Conditions', 'Resume Testing', 'Edit observation 1']) await expect(technician.getByRole('button', { name, exact: true })).toHaveCount(0);
     const history = technician.locator('section').filter({ has: technician.getByRole('heading', { name: 'Review and audit history', exact: true }) });
     await expect(history).toContainText('RETURN FOR CORRECTION');
     await expect(history).toContainText('OBSERVATION UPDATED');
-    await expect(history).toContainText('APPROVE');
+    expect(collection('audit').filter(item => item.testCaseId === caseId && item.action === 'APPROVE')).toHaveLength(0);
     expect((await browserFetch(technician, `/observations/${observationId}`, 'DELETE')).status).toBe(403);
     await screenshot(technician, 'approved-technician-history');
     await reviewer.reload();
@@ -474,10 +552,10 @@ async function main() {
     expect(await reviewer.locator('body').innerText()).not.toContain('This page could not be found.');
     await screenshot(reviewer, 'report-navigation');
   });
-  await scenario('Download existing approved PDF API through browser and compare persisted values', async () => {
+  await scenario('Legacy APPROVED PDF remains downloadable but is correctly PROTOTYPE and INCOMPLETE', async () => {
     activePage = reviewer;
     await reviewer.goto(`${frontend}/reports`);
-    const report = reviewer.getByRole('article', { name: `Report ${caseId}`, exact: true });
+    const report = reviewer.getByRole('article', { name: `Report ${legacyCaseId}`, exact: true });
     await expect(report).toBeVisible();
     const download = reviewer.waitForEvent('download');
     await report.getByRole('button', { name: 'Download PDF', exact: true }).click();
@@ -486,8 +564,9 @@ async function main() {
     await file.saveAs(pdfPath);
     const pdf = fs.readFileSync(pdfPath).toString('latin1');
     expect(pdf.startsWith('%PDF')).toBe(true);
-    expect(record().status).toBe('APPROVED');
-    for (const text of [caseId, 'Status: FINAL', 'Load: 5000 g', 'Indication: 5000 g', 'Add. Weights: 2.5 g', 'Ec: 0 g', 'MPE: 5 g', 'Verdict: PASS']) expect(pdf).toContain(text);
+    expect(collection('testCases').find(item => item.id === legacyCaseId).status).toBe('APPROVED');
+    for (const text of [legacyCaseId, 'Status: PROTOTYPE', 'Overall: INCOMPLETE', 'Load: 5000 g', 'Indication: 5000 g', 'Add. Weights: 2.5 g', 'Ec: 0 g', 'MPE: 5 g', 'Verdict: PASS']) expect(pdf).toContain(text);
+    expect(pdf).not.toContain('Status: FINAL');
     const viewer = await reviewer.context().newPage();
     activePage = viewer;
     await viewer.goto(pathToFileURL(pdfPath).href);
@@ -497,7 +576,7 @@ async function main() {
     await expect(pdfFrame.getByText('approved-report.pdf', { exact: true })).toBeVisible();
     await viewer.waitForTimeout(2000);
     await screenshot(viewer, 'approved-report-open-in-browser');
-    return 'The Reports UI fetched the real approved PDF with authentication; the browser downloaded it, opened Chromium PDF viewer, and compared its content with stored corrected values.';
+    return 'Real authenticated PDF download and Chromium viewer; synthetic legacy APPROVED fixture retains stored state and raw values without a false FINAL/PASS claim.';
   });
   await scenario('Second technician cannot access the first technician approved report', async () => {
     activePage = other;
@@ -542,7 +621,7 @@ async function main() {
     expect({ mutationRequests: requests, testCaseRequests: count('POST', '/api/v1/test-cases') - casesBefore, persistedInstruments: instruments.length, persistedCases: created.length })
       .toEqual({ mutationRequests: 1, testCaseRequests: 1, persistedInstruments: 1, persistedCases: 1 });
   });
-  await scenario('Administrator can claim and approve through the permitted browser workflow', async () => {
+  await scenario('Administrator can claim a review but cannot override incomplete-programme protection', async () => {
     const mainCaseId = caseId;
     try {
       await fillInstrument(technician, 'ADMIN-PROBE');
@@ -557,18 +636,50 @@ async function main() {
       await login(admin, 'administrator');
       await openWorkspace(admin);
       await clickMutation(admin, 'Start Review', `/test-cases/${caseId}/workflow/start-review`);
-      await clickMutation(admin, 'Approve Record', `/test-cases/${caseId}/workflow/approve`);
-      await savedState(admin, 'APPROVED');
-      await screenshot(admin, 'administrator-approved');
+      await expect(admin.getByRole('button', { name: 'Approve Record', exact: true })).toBeDisabled();
+      expect((await browserFetch(admin, `/test-cases/${caseId}/workflow/approve`, 'POST', { expectedRevision: record().revision })).status).toBe(409);
+      await savedState(admin, 'UNDER_REVIEW');
+      await screenshot(admin, 'administrator-final-approval-blocked');
     } finally { caseId = mainCaseId; }
   });
   await scenario('Logout clears session and protected navigation returns to login', async () => {
     activePage = technician;
-    await technician.getByRole('button', { name: 'Sign Out', exact: true }).first().click();
+    await technician.getByRole('button', { name: /Sign out/i }).first().click();
     await technician.waitForURL('**/login');
     expect(await technician.evaluate(() => localStorage.getItem('nawi_token'))).toBeNull();
     await technician.goto(`${frontend}/tests`);
     await technician.waitForURL('**/login');
+  });
+  await scenario('Business registers, signs in, submits and reloads its owned application through the actual form', async () => {
+    activePage = business;
+    await business.goto(`${frontend}/register`);
+    await business.getByLabel('Name', { exact: true }).fill('Full Runner Business');
+    await business.getByLabel('Email address', { exact: true }).fill(businessEmail);
+    await business.getByLabel('Password', { exact: true }).fill(businessPassword);
+    await business.getByRole('button', { name: 'Create account', exact: true }).click();
+    await expect(business.getByRole('status')).toContainText('Your account has been created');
+    await business.goto(`${frontend}/business/login`);
+    await business.getByLabel('Email address', { exact: true }).fill(businessEmail);
+    await business.getByLabel('Password', { exact: true }).fill(businessPassword);
+    await business.getByRole('button', { name: 'Sign In', exact: true }).click();
+    await business.waitForURL('**/applications');
+    await expect(business.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible();
+    await fillBusinessApplication(business);
+    const before = count('POST', '/api/v1/verification/applications');
+    await business.getByRole('button', { name: 'Submit application', exact: true }).evaluate(button => { button.click(); button.click(); });
+    await business.waitForURL('**/applications/*');
+    await expect(business.getByRole('heading', { name: 'Full runner scale', exact: true })).toBeVisible();
+    expect(count('POST', '/api/v1/verification/applications') - before).toBe(1);
+    const applicationId = business.url().split('/').pop();
+    const saved = collection('applications').find(item => item.id === applicationId);
+    expect(saved).toMatchObject({ ownerId: expect.any(String), status: 'SUBMITTED', instrument: { serialNumber: 'FULL-APP-SERIAL-1' } });
+    expect(saved.history).toHaveLength(1);
+    await business.reload();
+    await expect(business.getByText('30000 g', { exact: true })).toBeVisible();
+    await screenshot(business, 'business-application-submitted');
+    activePage = admin;
+    await admin.goto(`${frontend}/applications`);
+    await expect(admin.locator('main [role=alert]')).toContainText('Business applications require a Business account');
   });
   await scenario('Browser console contains no application runtime errors', async () => {
     expect(consoleEvents.filter(item => item.type === 'pageerror')).toEqual([]);
@@ -581,7 +692,6 @@ async function main() {
     expect(after).toEqual(projectDataBefore);
     return `Original project data: ${originalFiles.length} JSON files unchanged. Isolated data: ${dataDir}`;
   });
-  scenarios.push({ name: 'Business application form', status: 'BLOCKED', detail: 'This local checkout exposes laboratory instrument forms; no business application route or form exists to exercise.' });
   const summary = { browser: `Chromium ${browserVersion}`, playwright: require('@playwright/test/package.json').version, frontend, backend, caseId, output, dataDir, scenarios, blockedExternal };
   fs.writeFileSync(path.join(output, 'results.json'), JSON.stringify(summary, null, 2));
   fs.writeFileSync(path.join(output, 'network.json'), JSON.stringify(traffic, null, 2));
