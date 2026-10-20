@@ -1,3 +1,4 @@
+import { clearRepository } from './helpers/persistenceFixtures';
 import request from 'supertest';
 import fs from 'fs';
 import app from '../src/app';
@@ -9,23 +10,30 @@ import { saveInstrument } from '../src/services/MasterDataService';
 import { testSession } from './helpers/persistedIdentity';
 import { ReportService } from '../src/services/ReportService';
 import type { NativeProfile, NativeSubmission, NativeProgramme } from '../src/types/native';
-const tech = testSession('p3-tech','Technician'), other = testSession('p3-other','Technician'), reviewer = testSession('p3-review','Reviewer');
+let tech: string;
+let other: string;
+let reviewer: string;
+beforeAll(async () => {
+tech = (await testSession('p3-tech','Technician'));
+other = (await testSession('p3-other','Technician'));
+reviewer = (await testSession('p3-review','Reviewer'));
+});
 const registration = { manufacturerId: 'p3-maker', name: 'Synthetic P3 scale', model: 'P3', serialNumber: 'P3-1', accuracyClass: 'III',
   maxCapacity: '15000', minCapacity: '100', e: '5', d: '5', weighingUnit: 'g', hasTare: false,
   isWeighing: true, isManual: true, isElectronic: true, isSingleRange: true, hasAuxiliaryIndication: false, isGrading: false, softwareControlled: false };
 const profile: NativeProfile = { purpose: 'INITIAL_VERIFICATION', indication: 'DIGITAL', zeroDevices: ['SEMI_AUTOMATIC'], initialZeroSetting: false,
   eccentricityPossible: true, loadReceptor: 'PLATFORM', supportPoints: 4, evidenceReference: 'Synthetic manual and calibrated-mass record P3' };
 const api = (method: string, endpoint: string, payload?: object, token = tech) => (request(app) as any)[method](`/api/v1${endpoint}`).set('Authorization',`Bearer ${token}`).send(payload);
-let programme: NativeProgramme, instrument: ReturnType<typeof saveInstrument>;
+let programme: NativeProgramme, instrument: Awaited<ReturnType<typeof saveInstrument>>;
 const conditions = { stable: true, sufficientAccuracy: true, zeroInitiatedNearChangeover: true, outsideAutomaticRange: true, otherAutomaticDevicesDisabled: true, automaticDevicesInOperation: true };
 const repetition = (sequence: number, indication = '12000', additionalWeights = '2.5') => ({ sequence, load: '12000', indication, additionalWeights, unit: 'g', unloadedIndication: '0', unloadedAtRest: true, resetToZero: false });
 const repeat = (): NativeSubmission => ({ procedureId: 'REPEATABILITY', series: 'EIGHTY_PERCENT', readings: [repetition(1), repetition(2), repetition(3)], conditions, evidenceReference: 'SYNTHETIC-series-record' });
 const zero = (delta = '1.25', mechanism = 'SEMI_AUTOMATIC'): NativeSubmission => ({ procedureId: `ZERO_${mechanism}`, series: 'ACCURACY',
   readings: [{ sequence: 1, load: ['AUTOMATIC','ZERO_TRACKING'].includes(mechanism) ? '50' : '0', indication: ['AUTOMATIC','ZERO_TRACKING'].includes(mechanism) ? '50' : '0', additionalWeights: delta, unit: 'g' }], conditions, evidenceReference: 'SYNTHETIC-zero-record' });
-beforeEach(() => {
-  for (const store of [manufacturerStore,instrumentStore,testCaseStore,observationStore,nativeTestStore,auditStore]) store.clear();
-  manufacturerStore.saveItem({ id: 'p3-maker', name: 'Synthetic manufacturer', address: 'Test lab', identifier: 'P3-M' });
-  instrument = saveInstrument(registration,{id:'p3-tech',role:'Technician'});
+beforeEach(async () => {
+  for (const store of [manufacturerStore,instrumentStore,testCaseStore,observationStore,nativeTestStore,auditStore]) (await clearRepository(store));
+  (await manufacturerStore.saveItem({ id: 'p3-maker', name: 'Synthetic manufacturer', address: 'Test lab', identifier: 'P3-M' }));
+  instrument = (await saveInstrument(registration,{id:'p3-tech',role:'Technician'}));
   programme = buildNativeProgramme(instrument, profile, 'p3-tech');
 });
 it('has explicit unknown/unsupported/N/A distinctions and references, never a whole-standard PASS', () => {
@@ -107,22 +115,26 @@ async function createCase() {
   const created=await api('post','/test-cases',{instrumentId:instrument.id}).expect(201); const id=created.body.data.id;
   await api('put',`/test-cases/${id}/status`,{status:'TESTING',expectedRevision:0}).expect(200); return id;
 }
-function configure(id:string,p=profile) { return api('put',`/native/${id}/programme`,{expectedRevision:testCaseStore.findById(id)!.revision,profile:p}); }
-function save(id:string,submission=repeat(),token=tech) { return api('put',`/native/${id}/tests/${submission.procedureId}/${submission.series}`,{expectedRevision:testCaseStore.findById(id)!.revision,submission},token); }
+async function configure(id:string,p=profile) { return api('put',`/native/${id}/programme`,{expectedRevision:(await testCaseStore.findById(id))!.revision,profile:p}); }
+function checked(response: request.Response, status: number) {
+  expect(response.status).toBe(status);
+  return response;
+}
+async function save(id:string,submission=repeat(),token=tech) { return api('put',`/native/${id}/tests/${submission.procedureId}/${submission.series}`,{expectedRevision:(await testCaseStore.findById(id))!.revision,submission},token); }
 it('API preserves ownership/roles, strict fields, revision guards and programme freezing', async () => {
-  const id=await createCase(); await configure(id).expect(200);
+  const id=await createCase(); await checked((await configure(id)), 200);
   await api('get',`/native/${id}`,undefined,other).expect(403); await api('get',`/native/${id}`,undefined,reviewer).expect(403);
-  await save(id,repeat(),other).expect(403); await save(id,repeat(),reviewer).expect(403);
-  await save(id).expect(200); expect(nativeTestStore.findAll()).toHaveLength(1);
+  await checked((await save(id,repeat(),other)), 403); await checked((await save(id,repeat(),reviewer)), 403);
+  await checked((await save(id)), 200); expect((await nativeTestStore.findAll())).toHaveLength(1);
   await api('put',`/native/${id}/tests/REPEATABILITY/EIGHTY_PERCENT`,{expectedRevision:2,submission:repeat()}).expect(409);
-  await configure(id).expect(409);
-  await save(id,{...repeat(),result:{status:'PASS'}} as any).expect(400);
+  await checked((await configure(id)), 409);
+  await checked((await save(id,{...repeat(),result:{status:'PASS'}} as any)), 400);
   const result=(await api('get',`/native/${id}`).expect(200)).body.data; expect(result.tests[0].result.status).toBe('PASS');
 });
 it('incomplete samples cannot submit; corrections retain the prior native evidence', async () => {
-  const id=await createCase(); await configure(id).expect(200); const r=repeat(); r.readings.pop(); await save(id,r).expect(200);
-  await api('post',`/test-cases/${id}/workflow/submit`,{expectedRevision:testCaseStore.findById(id)!.revision}).expect(409);
-  await save(id).expect(200); expect(auditStore.findAll().find(row=>row.action==='NATIVE_TEST_CORRECTED')!.metadata!.previous.result.status).toBe('INCOMPLETE');
+  const id=await createCase(); await checked((await configure(id)), 200); const r=repeat(); r.readings.pop(); await checked((await save(id,r)), 200);
+  await api('post',`/test-cases/${id}/workflow/submit`,{expectedRevision:(await testCaseStore.findById(id))!.revision}).expect(409);
+  await checked((await save(id)), 200); expect((await auditStore.findAll()).find(row=>row.action==='NATIVE_TEST_CORRECTED')!.metadata!.previous.result.status).toBe('INCOMPLETE');
 });
 it('rejects non-quantized unloaded indications and retains precision beyond binary floating point', () => {
   const r = repeat(); r.readings[0].unloadedIndication = '0.1';
@@ -130,31 +142,31 @@ it('rejects non-quantized unloaded indications and retains precision beyond bina
   expect(evaluateNative(programme, zero('1.2499999999999999999999999')).status).toBe('FAIL');
 });
 it('a completed failed type series stays an observed FAIL while its missing companion is INCOMPLETE', async () => {
-  const id = await createCase(); await configure(id, {...profile,purpose:'TYPE_EVALUATION'}).expect(200);
+  const id = await createCase(); await checked((await configure(id, {...profile,purpose:'TYPE_EVALUATION'})), 200);
   const r = {...repeat(),series:'HALF_MAX',readings:Array.from({length:10},(_,index)=>({...repetition(index+1,'7510'),load:'7500'}))};
-  await save(id,r).expect(200);
-  const assessment = assessStoredProgramme(testCaseStore.findById(id)!);
+  await checked((await save(id,r)), 200);
+  const assessment = (await assessStoredProgramme((await testCaseStore.findById(id))!));
   expect(assessment).toMatchObject({overallVerdict:'INCOMPLETE',observedOutcome:'FAIL',complete:false});
   expect(assessment.native!.procedures.find(item=>item.id==='REPEATABILITY')!.status).toBe('INCOMPLETE');
 });
 it('durable native storage failure cannot acknowledge success or change the revision', async () => {
-  const id = await createCase(); await configure(id).expect(200);
-  const revision = testCaseStore.findById(id)!.revision;
+  const id = await createCase(); await checked((await configure(id)), 200);
+  const revision = (await testCaseStore.findById(id))!.revision;
   const spy = jest.spyOn(fs,'renameSync').mockImplementationOnce(()=>{throw new Error('Synthetic write failure');});
-  try { await save(id).expect(503); } finally { spy.mockRestore(); }
-  expect(nativeTestStore.findAll()).toHaveLength(0); expect(testCaseStore.findById(id)!.revision).toBe(revision);
-  await save(id).expect(200); expect(nativeTestStore.findAll()).toHaveLength(1);
+  try { await checked((await save(id)), 503); } finally { spy.mockRestore(); }
+  expect((await nativeTestStore.findAll())).toHaveLength(0); expect((await testCaseStore.findById(id))!.revision).toBe(revision);
+  await checked((await save(id)), 200); expect((await nativeTestStore.findAll())).toHaveLength(1);
 });
 it('native PASS/FAIL remains INCOMPLETE overall and cannot get final approval; exports retain real failure and frozen metadata', async () => {
-  const id=await createCase(); await configure(id).expect(200); const r=repeat(); r.readings[2]=repetition(3,'12010'); await save(id,r).expect(200); await save(id,zero()).expect(200);
-  expect(assessStoredProgramme(testCaseStore.findById(id)!)).toMatchObject({overallVerdict:'INCOMPLETE',observedOutcome:'FAIL',complete:false});
-  await api('post',`/test-cases/${id}/workflow/submit`,{expectedRevision:testCaseStore.findById(id)!.revision}).expect(200);
-  await api('post',`/test-cases/${id}/workflow/start-review`,{expectedRevision:testCaseStore.findById(id)!.revision},reviewer).expect(200);
-  await api('post',`/test-cases/${id}/workflow/approve`,{expectedRevision:testCaseStore.findById(id)!.revision},reviewer).expect(409);
-  await save(id).expect(403);
+  const id=await createCase(); await checked((await configure(id)), 200); const r=repeat(); r.readings[2]=repetition(3,'12010'); await checked((await save(id,r)), 200); await checked((await save(id,zero())), 200);
+  expect((await assessStoredProgramme((await testCaseStore.findById(id))!))).toMatchObject({overallVerdict:'INCOMPLETE',observedOutcome:'FAIL',complete:false});
+  await api('post',`/test-cases/${id}/workflow/submit`,{expectedRevision:(await testCaseStore.findById(id))!.revision}).expect(200);
+  await api('post',`/test-cases/${id}/workflow/start-review`,{expectedRevision:(await testCaseStore.findById(id))!.revision},reviewer).expect(200);
+  await api('post',`/test-cases/${id}/workflow/approve`,{expectedRevision:(await testCaseStore.findById(id))!.revision},reviewer).expect(409);
+  await checked((await save(id)), 403);
   // Only an isolated legacy-approved export fixture; do not bypass the public native gate.
-  testCaseStore.saveItem({...testCaseStore.findById(id)!,status:'APPROVED'});
-  const data=ReportService.generateReportData(id,'Reviewer'); expect(data.status).toBe('PROTOTYPE'); expect(data.nativeTests![0].result.status).toBe('FAIL');
-  const html=ReportService.generateHtmlReport(id,'Reviewer'); expect(html).toContain('A.4.10'); expect(html).toContain('Synthetic manufacturer');
-  const pdf=ReportService.generatePdfReport(id,'Reviewer').toString('latin1'); expect(pdf).toContain('Native programme'); expect(pdf).toContain('/Type /Page');
+  (await testCaseStore.saveItem({...(await testCaseStore.findById(id))!,status:'APPROVED'}));
+  const data=(await ReportService.generateReportData(id,'Reviewer')); expect(data.status).toBe('PROTOTYPE'); expect(data.nativeTests![0].result.status).toBe('FAIL');
+  const html=(await ReportService.generateHtmlReport(id,'Reviewer')); expect(html).toContain('A.4.10'); expect(html).toContain('Synthetic manufacturer');
+  const pdf=(await ReportService.generatePdfReport(id,'Reviewer')).toString('latin1'); expect(pdf).toContain('Native programme'); expect(pdf).toContain('/Type /Page');
 });

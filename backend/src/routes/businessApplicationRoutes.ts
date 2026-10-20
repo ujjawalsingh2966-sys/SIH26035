@@ -1,7 +1,8 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { body } from 'express-validator';
 import Decimal from 'decimal.js';
 import { validateRequest } from '../middlewares/validateRequest';
+import { withPersistence } from '../middlewares/withPersistence';
 import {
   ApplicationHttpError,
   getOwnApplication,
@@ -12,9 +13,8 @@ import {
 export const businessApplicationRoutes = Router();
 
 const run = (handler: (req: Request, res: Response) => unknown) =>
-  (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve().then(() => handler(req, res)).catch(next);
-  };
+  withPersistence(handler, res => res.status(503).json({ success: false,
+    error: { message: 'Application could not be saved. Your form is unchanged; please try again.' } }));
 
 const text = (field: string, max = 200) =>
   body(field).isString().bail().trim().isLength({ min: 1, max });
@@ -48,8 +48,8 @@ const applicationShape = body().custom(value => {
   return true;
 });
 
-businessApplicationRoutes.get('/applications', run((req, res) => {
-  res.json({ success: true, data: { applications: listOwnApplications(req.user!), alerts: [] } });
+businessApplicationRoutes.get('/applications', run(async (req, res) => {
+  res.json({ success: true, data: { applications: (await listOwnApplications(req.user!)), alerts: [] } });
 }));
 
 businessApplicationRoutes.post(
@@ -82,9 +82,9 @@ businessApplicationRoutes.post(
     return true;
   }),
   validateRequest,
-  run((req, res) => {
+  run(async (req, res) => {
     const instrument = req.body.instrument;
-    const result = submitBusinessApplication(req.user!, {
+    const result = (await submitBusinessApplication(req.user!, {
       submissionKey: req.body.submissionKey,
       businessName: req.body.businessName,
       address: req.body.address,
@@ -103,21 +103,21 @@ businessApplicationRoutes.post(
         isElectronic: true,
         isSingleRange: true,
       },
-    });
+    }));
     res.status(result.created ? 201 : 200).json({ success: true, data: result.application });
   }),
 );
 
-businessApplicationRoutes.get('/applications/:id', run((req, res) => {
-  res.json({ success: true, data: getOwnApplication(req.params.id, req.user!) });
+businessApplicationRoutes.get('/applications/:id', run(async (req, res) => {
+  res.json({ success: true, data: (await getOwnApplication(req.params.id, req.user!)) });
 }));
 
-businessApplicationRoutes.put('/applications/:id', run((req, res) => {
-  getOwnApplication(req.params.id, req.user!);
+businessApplicationRoutes.put('/applications/:id', run(async (req, res) => {
+  (await getOwnApplication(req.params.id, req.user!));
   throw new ApplicationHttpError(409, 'Submitted applications cannot be edited');
 }));
 
-businessApplicationRoutes.post('/applications/:id/submit', run((req, res) => {
-  getOwnApplication(req.params.id, req.user!);
+businessApplicationRoutes.post('/applications/:id/submit', run(async (req, res) => {
+  (await getOwnApplication(req.params.id, req.user!));
   throw new ApplicationHttpError(409, 'Application is already submitted');
 }));

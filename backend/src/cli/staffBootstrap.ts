@@ -2,7 +2,7 @@
 import { createStaff, staffStore } from '../services/StaffService';
 
 async function main() {
-  if (staffStore.findAll().length) throw new Error('Bootstrap is disabled once staff accounts exist. Use an authorized Administrator.');
+  if ((await staffStore.findAll()).length) throw new Error('Bootstrap is disabled once staff accounts exist. Use an authorized Administrator.');
   if (process.argv.length > 2) throw new Error('Use environment input, not command-line credentials.');
   await createStaff({ name: process.env.W8LAB_BOOTSTRAP_NAME, email: process.env.W8LAB_BOOTSTRAP_EMAIL,
     password: process.env.W8LAB_BOOTSTRAP_PASSWORD, role: 'Administrator',

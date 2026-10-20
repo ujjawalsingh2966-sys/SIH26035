@@ -27,7 +27,7 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
       d: '10',
       hasTare: true
     };
-    instrumentStore.saveItem(mockInstrument);
+    (await instrumentStore.saveItem(mockInstrument));
 
     // Draft a test case and approve it immediately
     const tc: TestCase = {
@@ -45,7 +45,7 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
-    testCaseStore.saveItem(tc);
+    (await testCaseStore.saveItem(tc));
     testCaseId = tc.id;
 
     // Phase 8 wiring: report compliance data is now sourced from real, persisted
@@ -63,12 +63,12 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
       zeroError: '0'
     };
     observation.evaluation = EvaluationService.evaluateObservation(mockInstrument, observation, true);
-    observationStore.saveItem(observation);
+    (await observationStore.saveItem(observation));
   });
 
   describe('Evidence Management', () => {
-    it('should add evidence to a valid test case', () => {
-      const evidence = EvidenceService.addEvidence(
+    it('should add evidence to a valid test case', async () => {
+      const evidence = (await EvidenceService.addEvidence(
         testCaseId,
         'WEIGHING',
         'Load test setup photo',
@@ -77,34 +77,34 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
         15400,
         'TECH-1',
         'base64data...'
-      );
+      ));
       expect(evidence.id).toMatch(/^ev_/);
       expect(evidence.testCaseId).toBe(testCaseId);
     });
 
-    it('should fetch evidence for a test case', () => {
-      const records = EvidenceService.getEvidenceForTestCase(testCaseId);
+    it('should fetch evidence for a test case', async () => {
+      const records = (await EvidenceService.getEvidenceForTestCase(testCaseId));
       expect(records.length).toBeGreaterThan(0);
     });
   });
 
   describe('Report Generation', () => {
-    it('should return HTML report', () => {
-      const html = ReportService.generateHtmlReport(testCaseId, 'Administrator');
+    it('should return HTML report', async () => {
+      const html = (await ReportService.generateHtmlReport(testCaseId, 'Administrator'));
       expect(html).toContain('OIML R76 Test Report');
       expect(html).toContain('Prototype / Pending Official Template Confirmation');
       expect(html).toContain(testCaseId);
     });
 
-    it('should return PDF report buffer', () => {
-      const pdfBuffer = ReportService.generatePdfReport(testCaseId, 'Administrator');
+    it('should return PDF report buffer', async () => {
+      const pdfBuffer = (await ReportService.generatePdfReport(testCaseId, 'Administrator'));
       expect(pdfBuffer).toBeInstanceOf(Buffer);
       const pdfHeader = pdfBuffer.toString('utf8', 0, 5);
       expect(pdfHeader).toBe('%PDF-');
     });
 
-    it('should return JSON report data sourced from the real persisted evaluation', () => {
-      const data = ReportService.generateReportData(testCaseId, 'Administrator');
+    it('should return JSON report data sourced from the real persisted evaluation', async () => {
+      const data = (await ReportService.generateReportData(testCaseId, 'Administrator'));
       expect(data.testCaseId).toBe(testCaseId);
       // Phase 8 wiring: overallVerdict is now the real Compliance Engine verdict
       // aggregated from persisted observation evaluations, not a hardcoded literal.
@@ -118,8 +118,8 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
       expect(data.meta.ruleEngineVersion).toBe('OIML-R76-1-2006-CORE-V1.0.0-MVP');
     });
 
-    it('should expose the real persisted P/E/Ec/m/MPE/verdict for the evaluated observation', () => {
-      const data = ReportService.generateReportData(testCaseId, 'Administrator');
+    it('should expose the real persisted P/E/Ec/m/MPE/verdict for the evaluated observation', async () => {
+      const data = (await ReportService.generateReportData(testCaseId, 'Administrator'));
       expect(data.observationEvaluations).toHaveLength(1);
 
       const ev = data.observationEvaluations[0];
@@ -143,8 +143,8 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
       expect(ev.evaluatedAt).toBeDefined();
     });
 
-    it('should surface the Metrological Evaluation section with real values in the HTML report', () => {
-      const html = ReportService.generateHtmlReport(testCaseId, 'Administrator');
+    it('should surface the Metrological Evaluation section with real values in the HTML report', async () => {
+      const html = (await ReportService.generateHtmlReport(testCaseId, 'Administrator'));
       expect(html).toContain('Metrological Evaluation');
       // The real calculated Ec (0) and MPE (from the persisted rule package) must appear,
       // not a placeholder or hardcoded string.
@@ -152,15 +152,15 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
       expect(html).toContain('WEIGHING #1');
     });
 
-    it('should surface the same real evaluation values in the PDF text stream', () => {
-      const pdfBuffer = ReportService.generatePdfReport(testCaseId, 'Administrator');
+    it('should surface the same real evaluation values in the PDF text stream', async () => {
+      const pdfBuffer = (await ReportService.generatePdfReport(testCaseId, 'Administrator'));
       const pdfText = pdfBuffer.toString('latin1');
       expect(pdfText).toContain('Metrological Evaluation');
       expect(pdfText).toContain('WEIGHING #1');
       expect(pdfText).toContain('Verdict: PASS');
     });
 
-    it('REGRESSION: overallVerdict is not a hardcoded APPROVED/constant - a FAIL observation must surface as FAIL', () => {
+    it('REGRESSION: overallVerdict is not a hardcoded APPROVED/constant - a FAIL observation must surface as FAIL', async () => {
       // Distinct instrument/test case from the shared beforeAll fixture to avoid interference.
       const failInstrument = {
         id: 'INST-PHASE10-FAIL',
@@ -179,7 +179,7 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
         d: '5',
         hasTare: false
       };
-      instrumentStore.saveItem(failInstrument);
+      (await instrumentStore.saveItem(failInstrument));
 
       const failTc: TestCase = {
         id: 'TC_PHASE10_FAIL',
@@ -192,7 +192,7 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
         },
         createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
       };
-      testCaseStore.saveItem(failTc);
+      (await testCaseStore.saveItem(failTc));
 
       // Same values as GT-02-FAIL-III-NOR: Ec=10.5g > MPE(Class III, m=1000)=5g -> FAIL
       const failObs: ObservationRecord = {
@@ -206,9 +206,9 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
       };
       failObs.evaluation = EvaluationService.evaluateObservation(failInstrument, failObs, true);
       expect(failObs.evaluation.compliance.verdict).toBe('FAIL'); // sanity check on the fixture itself
-      observationStore.saveItem(failObs);
+      (await observationStore.saveItem(failObs));
 
-      const data = ReportService.generateReportData(failTc.id, 'Administrator');
+      const data = (await ReportService.generateReportData(failTc.id, 'Administrator'));
       expect(data.complianceSummary.overallVerdict).toBe('INCOMPLETE');
       expect(data.programme.observedOutcome).toBe('FAIL');
       expect(data.status).toBe('PROTOTYPE');
@@ -216,7 +216,7 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
       expect(data.observationEvaluations[0].verdict).toBe('FAIL');
     });
 
-    it('REGRESSION: ruleEngineVersion is read from persisted evaluation data, not a hardcoded literal', () => {
+    it('REGRESSION: ruleEngineVersion is read from persisted evaluation data, not a hardcoded literal', async () => {
       // Directly persist an observation whose evaluation carries a rule version different
       // from the app-wide MVP constant. If ReportService were still hardcoding the version
       // (as it did before this wiring), this test would see the old literal instead.
@@ -237,7 +237,7 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
         d: '5',
         hasTare: false
       };
-      instrumentStore.saveItem(versionInstrument);
+      (await instrumentStore.saveItem(versionInstrument));
 
       const versionTc: TestCase = {
         id: 'TC_PHASE10_VER',
@@ -250,7 +250,7 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
         },
         createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
       };
-      testCaseStore.saveItem(versionTc);
+      (await testCaseStore.saveItem(versionTc));
 
       const versionObs: ObservationRecord = {
         id: 'OBS_PHASE10_VER_1',
@@ -278,18 +278,18 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
           evaluatedAt: new Date().toISOString()
         }
       };
-      observationStore.saveItem(versionObs);
+      (await observationStore.saveItem(versionObs));
 
-      const data = ReportService.generateReportData(versionTc.id, 'Administrator');
+      const data = (await ReportService.generateReportData(versionTc.id, 'Administrator'));
       expect(data.meta.ruleEngineVersion).toBe('TEST-RULE-VERSION-DISTINCT-9.9.9');
       expect(data.meta.ruleEngineVersion).not.toBe('OIML-R76-1-2006-CORE-V1.0.0-MVP');
       expect(data.observationEvaluations[0].ruleVersion).toBe('TEST-RULE-VERSION-DISTINCT-9.9.9');
 
-      const html = ReportService.generateHtmlReport(versionTc.id, 'Administrator');
+      const html = (await ReportService.generateHtmlReport(versionTc.id, 'Administrator'));
       expect(html).toContain('TEST-RULE-VERSION-DISTINCT-9.9.9');
     });
 
-    it('should fail if requested for a DRAFT test case', () => {
+    it('should fail if requested for a DRAFT test case', async () => {
       const dTc: TestCase = {
           id: 'TC_DRAFT',
           instrumentId: mockInstrument.id,
@@ -300,11 +300,11 @@ describe('Phase 10: Controlled Report Generation & Evidence Implementation', () 
           },
           createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
       };
-      testCaseStore.saveItem(dTc);
+      (await testCaseStore.saveItem(dTc));
 
-      expect(() => {
-        ReportService.generateHtmlReport(dTc.id, 'Administrator');
-      }).toThrow('Final test reports can only be generated from test cases in APPROVED status');
+      await expect(async () => {
+        (await ReportService.generateHtmlReport(dTc.id, 'Administrator'));
+      }).rejects.toThrow('Final test reports can only be generated from test cases in APPROVED status');
     });
   });
 });

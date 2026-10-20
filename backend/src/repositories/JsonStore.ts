@@ -60,16 +60,16 @@ export class JsonStore<T extends { id: string }> {
   }
 
   findAll(): T[] {
-    return Array.from(this.collection.values());
+    return structuredClone(Array.from(this.collection.values()));
   }
 
   findById(id: string): T | undefined {
-    return this.collection.get(id);
+    return structuredClone(this.collection.get(id));
   }
 
   saveItem(item: T, requireDurable = false): T {
     const previous = this.collection.get(item.id);
-    this.collection.set(item.id, item);
+    this.collection.set(item.id, structuredClone(item));
     try {
       this.save(requireDurable);
     } catch (err) {
@@ -77,7 +77,19 @@ export class JsonStore<T extends { id: string }> {
       else this.collection.delete(item.id);
       throw err;
     }
-    return item;
+    return structuredClone(item);
+  }
+
+  /** Internal adapter hooks. Persist first, publish only after the UoW commits. */
+  persistItems(items: T[]): void {
+    const previous = this.collection;
+    this.collection = new Map(items.map(item => [item.id, structuredClone(item)]));
+    try { this.save(true); }
+    finally { this.collection = previous; }
+  }
+
+  publishItems(items: T[]): void {
+    this.collection = new Map(items.map(item => [item.id, structuredClone(item)]));
   }
 
   deleteItem(id: string): void {

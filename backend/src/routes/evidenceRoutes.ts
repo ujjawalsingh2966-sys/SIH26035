@@ -1,3 +1,4 @@
+import { withPersistence } from '../middlewares/withPersistence';
 import { touchTestCase } from '../services/TestCaseRevision';
 import { Router, Request, Response } from 'express';
 import { body } from 'express-validator';
@@ -21,16 +22,16 @@ evidenceRoutes.post(
   body('sizeBytes').isNumeric(),
   validateRequest,
   requireTestCaseAccess(req => req.body.testCaseId),
-  (req: Request, res: Response) => {
+  withPersistence(async (req: Request, res: Response) => {
     try {
       const user = (req as any).user;
       const data = req.body;
-      const testCase = testCaseStore.findById(data.testCaseId)!;
+      const testCase = (await testCaseStore.findById(data.testCaseId))!;
       if (testCase.status !== 'TESTING') {
         return res.status(403).json({ success: false, error: 'Evidence changes require TESTING status' });
       }
 
-      const evidence = EvidenceService.addEvidence(
+      const evidence = (await EvidenceService.addEvidence(
         data.testCaseId,
         data.testType,
         data.description,
@@ -39,25 +40,25 @@ evidenceRoutes.post(
         data.sizeBytes,
         user.id,
         data.fileData
-      );
-      touchTestCase(testCase);
-      AuditService.recordEvent({
+      ));
+      (await touchTestCase(testCase));
+      (await AuditService.recordEvent({
         testCaseId: testCase.id, actorId: user.id, actorRole: user.role,
         action: 'EVIDENCE_ADDED', metadata: { evidenceId: evidence.id, fileName: evidence.fileName }
-      });
+      }));
 
       res.status(201).json({ success: true, data: evidence });
     } catch (err: any) {
       res.status(400).json({ success: false, error: err.message });
     }
-  }
+  }, (res, error) => res.status(400).json({ success: false, error: error.message }))
 );
 
-evidenceRoutes.get('/:testCaseId', requireRole(['Technician', 'Reviewer', 'Administrator']), requireTestCaseAccess(req => req.params.testCaseId), (req, res) => {
+evidenceRoutes.get('/:testCaseId', requireRole(['Technician', 'Reviewer', 'Administrator']), requireTestCaseAccess(req => req.params.testCaseId), withPersistence(async (req, res) => {
   try {
-    const records = EvidenceService.getEvidenceForTestCase(req.params.testCaseId);
+    const records = (await EvidenceService.getEvidenceForTestCase(req.params.testCaseId));
     res.json({ success: true, data: records });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
   }
-});
+}, (res, error) => res.status(400).json({ success: false, error: error.message })));

@@ -1,3 +1,4 @@
+import { clearRepository } from './helpers/persistenceFixtures';
 import fs from 'fs';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
@@ -18,7 +19,7 @@ const input = { name: 'Synthetic Business', email: 'business-account@example.tes
 const register = (body: Record<string, unknown> = input) => request(app).post('/api/v1/auth/register').send(body);
 const login = (body: Record<string, unknown> = { email: input.email, password }) => request(app).post('/api/v1/auth/login').send(body);
 
-beforeEach(async () => { accountStore.clear(); await provisionLegacyTestStaff(); });
+beforeEach(async () => { (await clearRepository(accountStore)); await provisionLegacyTestStaff(); });
 afterEach(() => jest.restoreAllMocks());
 
 it('registers only Business, normalizes identity, persists salted hashes and omits private fields', async () => {
@@ -26,23 +27,23 @@ it('registers only Business, normalizes identity, persists salted hashes and omi
   expect(response.body.data).toMatchObject({ name: input.name, email: input.email, role: 'Business', active: true });
   expect(response.body.data.id).not.toBe('forged');
   expect(response.body.data).not.toHaveProperty('passwordHash');
-  const saved = new JsonStore('accounts.json', true).findAll() as ReturnType<typeof accountStore.findAll>;
+  const saved = new JsonStore('accounts.json', true).findAll() as Awaited<ReturnType<typeof accountStore.findAll>>;
   expect(saved).toHaveLength(1);
   expect(saved[0].passwordHash).toMatch(/^[a-f0-9]{32}:[a-f0-9]{128}$/);
   expect(saved[0].passwordHash).not.toContain(password);
   expect(checkPassword(password, saved[0].passwordHash)).toBe(true);
-  expect(createBusinessAccount('Other business', 'other@example.test', password).passwordHash).not.toEqual(saved[0].passwordHash);
+  expect((await createBusinessAccount('Other business', 'other@example.test', password)).passwordHash).not.toEqual(saved[0].passwordHash);
 });
 
 it.each(['Technician', 'Reviewer', 'Administrator', 'LMO', 'GATC', '', null, ['Business']])('rejects a registration role payload %p', async role => {
   await register({ ...input, role }).expect(403);
-  expect(accountStore.findAll()).toHaveLength(0);
+  expect((await accountStore.findAll())).toHaveLength(0);
 });
 
 it('accepts an explicit Business role and rejects case-insensitive duplicate registration', async () => {
   await register({ ...input, role: 'Business' }).expect(201);
   await register({ ...input, email: input.email.toUpperCase() }).expect(409);
-  expect(accountStore.findAll()).toHaveLength(1);
+  expect((await accountStore.findAll())).toHaveLength(1);
 });
 
 it.each([
@@ -57,7 +58,7 @@ it.each([
   expect(JSON.stringify(response.body)).not.toContain(password);
   expect(JSON.stringify(warning.mock.calls)).not.toContain(password);
   expect(response.body.errors.every((error: object) => !('value' in error))).toBe(true);
-  expect(accountStore.findAll()).toHaveLength(0);
+  expect((await accountStore.findAll())).toHaveLength(0);
 });
 
 it('authenticates the persisted account and resolves /me without exposing its hash', async () => {
@@ -74,7 +75,7 @@ it('authenticates the persisted account and resolves /me without exposing its ha
 });
 
 it('does not fall back to staff demo authentication for a registered Business email', async () => {
-  createBusinessAccount(input.name, 'admin-reviewer-business@example.test', password);
+  (await createBusinessAccount(input.name, 'admin-reviewer-business@example.test', password));
   const response = await login({ email: 'admin-reviewer-business@example.test', password }).expect(200);
   expect(response.body.data.user.role).toBe('Business');
   // Read the existing local development default without copying it into this test.
@@ -82,13 +83,13 @@ it('does not fall back to staff demo authentication for a registered Business em
 });
 
 it('rejects wrong passwords, inactive/missing Business identities and malformed hashes', async () => {
-  const account = createBusinessAccount(input.name, input.email, password);
+  const account = (await createBusinessAccount(input.name, input.email, password));
   await login({ email: input.email, password: 'wrong-password' }).expect(401);
-  accountStore.saveItem({ ...account, active: false });
+  (await accountStore.saveItem({ ...account, active: false }));
   await login().expect(401);
-  const token = issueSession(account);
+  const token = (await issueSession(account));
   await request(app).get('/api/v1/auth/me').set('Authorization', `Bearer ${token}`).expect(401);
-  accountStore.clear();
+  (await clearRepository(accountStore));
   await request(app).get('/api/v1/auth/me').set('Authorization', `Bearer ${token}`).expect(401);
   expect(checkPassword(password, 'bad-hash')).toBe(false);
 });
@@ -98,7 +99,7 @@ it('surfaces a failed account save, rolls back memory and permits a safe retry',
   const response = await register().expect(503);
   expect(response.body.error).toBe('Account could not be saved. Please try again.');
   expect(JSON.stringify(response.body)).not.toMatch(/Synthetic disk|passwordHash|accounts\.json/);
-  expect(accountStore.findAll()).toHaveLength(0);
+  expect((await accountStore.findAll())).toHaveLength(0);
   expect(new JsonStore('accounts.json', true).findAll()).toHaveLength(0);
   rename.mockRestore();
   await register().expect(201);
@@ -114,8 +115,8 @@ it.each([
   ['get', '/reports/unknown/data'], ['get', '/reports/unknown/html'], ['get', '/reports/unknown/pdf'],
   ['get', '/repository/search'], ['get', '/repository/dashboard']
 ])('denies Business access to staff operation %s %s', async (method, endpoint) => {
-  const account = createBusinessAccount(input.name, input.email, password);
-  const token = issueSession(account);
+  const account = (await createBusinessAccount(input.name, input.email, password));
+  const token = (await issueSession(account));
   const response = await (request(app) as any)[method](`/api/v1${endpoint}`).set('Authorization', `Bearer ${token}`).expect(403);
   expect(response.body).toEqual({ success: false, error: 'Forbidden: Insufficient permissions' });
 });
@@ -135,21 +136,21 @@ it('keeps explicitly provisioned legacy roles, stable identities and /me behavio
 
 it.each(['technician@example.com', 'technician2@example.com', 'reviewer@example.com', 'admin@example.com'])('reserves documented staff identity %s', async email => {
   await register({ ...input, email: email.toUpperCase() }).expect(409);
-  expect(accountStore.findAll()).toHaveLength(0);
+  expect((await accountStore.findAll())).toHaveLength(0);
 });
 
 it.each(['technician', 'reviewer', 'audit', 'evidence'])('reserves a staff identity referenced by %s records', async reference => {
   const email = `existing-${reference}@example.test`;
   const id = developmentStaffId(email);
   if (reference === 'technician' || reference === 'reviewer') {
-    testCaseStore.saveItem({ id: `staff-${reference}`, instrumentId: 'synthetic', technicianId: reference === 'technician' ? id : 'other', reviewerId: reference === 'reviewer' ? id : undefined, status: 'DRAFT', createdAt: '', updatedAt: '', testConfiguration: {} as any });
+    (await testCaseStore.saveItem({ id: `staff-${reference}`, instrumentId: 'synthetic', technicianId: reference === 'technician' ? id : 'other', reviewerId: reference === 'reviewer' ? id : undefined, status: 'DRAFT', createdAt: '', updatedAt: '', testConfiguration: {} as any }));
   } else if (reference === 'audit') {
-    auditStore.saveItem({ id: 'staff-audit', testCaseId: 'synthetic', actorId: id, actorRole: 'Reviewer', action: 'SYNTHETIC', timestamp: '' });
+    (await auditStore.saveItem({ id: 'staff-audit', testCaseId: 'synthetic', actorId: id, actorRole: 'Reviewer', action: 'SYNTHETIC', timestamp: '' }));
   } else {
-    evidenceStore.saveItem({ id: 'staff-evidence', testCaseId: 'synthetic', uploadedBy: id } as any);
+    (await evidenceStore.saveItem({ id: 'staff-evidence', testCaseId: 'synthetic', uploadedBy: id } as any));
   }
   await register({ ...input, email }).expect(409);
-  expect(accountStore.findAll()).toHaveLength(0);
+  expect((await accountStore.findAll())).toHaveLength(0);
 });
 
 it('persists one account for overlapping duplicate registration requests', async () => {

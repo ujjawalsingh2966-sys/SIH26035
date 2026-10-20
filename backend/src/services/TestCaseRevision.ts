@@ -1,8 +1,11 @@
+import { unitOfWork } from '../repositories/persistence';
 import { testCaseStore } from '../repositories';
 import { TestCase } from '../types/domain';
 
-export function touchTestCase(testCase: TestCase) {
-  testCase.revision = (testCase.revision ?? 0) + 1;
-  testCase.updatedAt = new Date().toISOString();
-  testCaseStore.saveItem(testCase);
+export async function touchTestCase(testCase: TestCase) {
+  return unitOfWork.write(async () => {
+    testCase.revision = (testCase.revision ?? 0) + 1;
+    testCase.updatedAt = new Date().toISOString();
+    (await testCaseStore.saveItem(testCase));
+  });
 }
