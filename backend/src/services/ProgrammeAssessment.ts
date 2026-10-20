@@ -1,9 +1,11 @@
+import { unitOfWork } from '../repositories/persistence';
 import type { Instrument, Manufacturer, ObservationRecord, ObservationType, TestCase } from '../types/domain';
 import { finiteDecimal, isMassUnit } from '../calculations/unitConversion';
 import { EVALUATION_VERSION, observationFingerprint } from './EvaluationService';
 import { observationStore, nativeTestStore } from '../repositories';
 import { caseMasterData } from './MasterDataService';
 import { assessNative } from './NativeAssessment';
+import type { NativeTestRecord } from '../types/native';
 
 export const TEST_KEYS = {
   WEIGHING: 'weighing', ECCENTRICITY: 'eccentricity', REPEATABILITY: 'repeatability',
@@ -41,7 +43,7 @@ function currentResolvedEvaluation(instrument: Instrument, testCase: TestCase, r
 /** A completeness gate, not a new metrology evaluator. It never recalculates or
  * changes stored observations. Untested, blocked and unknown are not PASS/N/A. */
 export function assessProgramme(testCase: TestCase, instrument: Instrument | undefined,
-  manufacturer: Manufacturer | undefined, observations: ObservationRecord[]): ProgrammeAssessment {
+  manufacturer: Manufacturer | undefined, observations: ObservationRecord[], nativeTests: NativeTestRecord[] = []): ProgrammeAssessment {
   const issues: string[] = [];
   const rows = observations.filter(row => row.testCaseId === testCase.id);
   if (!manufacturer || ![manufacturer.name, manufacturer.address, manufacturer.identifier].every(nonblank)) {
@@ -67,7 +69,7 @@ export function assessProgramme(testCase: TestCase, instrument: Instrument | und
   } catch { issues.push('Valid laboratory temperature, humidity (0–100%) and pressure (>0 hPa) are required.'); }
 
   if (testCase.nativeProgramme !== undefined && instrument) {
-    const native = assessNative(testCase, instrument, nativeTestStore.findAll());
+    const native = assessNative(testCase, instrument, nativeTests);
     issues.push(...native.issues);
     const tests = {} as ProgrammeAssessment['tests'];
     for (const type of Object.keys(TEST_KEYS) as ObservationType[]) {
@@ -129,7 +131,9 @@ export function assessProgramme(testCase: TestCase, instrument: Instrument | und
     observedOutcome, overallVerdict: complete ? (observedOutcome === 'FAIL' ? 'FAIL' : 'PASS') : 'INCOMPLETE' };
 }
 
-export function assessStoredProgramme(testCase: TestCase): ProgrammeAssessment {
-  const { instrument, manufacturer } = caseMasterData(testCase);
-  return assessProgramme(testCase, instrument, manufacturer, observationStore.findAll());
+export async function assessStoredProgramme(testCase: TestCase): Promise<ProgrammeAssessment> {
+  return unitOfWork.read(async () => {
+    const { instrument, manufacturer } = await caseMasterData(testCase);
+    return assessProgramme(testCase, instrument, manufacturer, await observationStore.findAll(), await nativeTestStore.findAll());
+  });
 }

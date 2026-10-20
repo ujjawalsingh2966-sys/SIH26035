@@ -1,3 +1,4 @@
+import { withPersistence } from '../middlewares/withPersistence';
 import { Router, Request, Response } from 'express';
 import { requireRole } from '../middlewares/authResolver';
 import { RepositoryService, SearchFilters, Pagination } from '../services/RepositoryService';
@@ -11,18 +12,18 @@ import { caseMasterData } from '../services/MasterDataService';
 export const repositoryRoutes = Router();
 
 // GET /api/v1/repository/dashboard
-repositoryRoutes.get('/dashboard', requireRole(['Technician', 'Reviewer', 'Administrator']), (req: Request, res: Response) => {
+repositoryRoutes.get('/dashboard', requireRole(['Technician', 'Reviewer', 'Administrator']), withPersistence(async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    const metrics = RepositoryService.getDashboardMetrics(user);
+    const metrics = (await RepositoryService.getDashboardMetrics(user));
     res.json({ success: true, data: metrics });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
-});
+}));
 
 // GET /api/v1/repository/search
-repositoryRoutes.get('/search', requireRole(['Technician', 'Reviewer', 'Administrator']), (req: Request, res: Response) => {
+repositoryRoutes.get('/search', requireRole(['Technician', 'Reviewer', 'Administrator']), withPersistence(async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const filters: SearchFilters = {
@@ -43,19 +44,19 @@ repositoryRoutes.get('/search', requireRole(['Technician', 'Reviewer', 'Administ
     if (pagination.page < 1) pagination.page = 1;
     if (pagination.limit > 100) pagination.limit = 100; // prevent excessive query
 
-    const result = RepositoryService.search(filters, pagination, user);
+    const result = (await RepositoryService.search(filters, pagination, user));
     res.json({ success: true, data: result.data, total: result.total, page: pagination.page, limit: pagination.limit });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
   }
-});
+}));
 
 // GET /api/v1/repository/records/:testCaseId
-repositoryRoutes.get('/records/:testCaseId', requireRole(['Technician', 'Reviewer', 'Administrator']), (req: Request, res: Response) => {
+repositoryRoutes.get('/records/:testCaseId', requireRole(['Technician', 'Reviewer', 'Administrator']), withPersistence(async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const testCaseId = req.params.testCaseId;
-    const testCase = testCaseStore.findById(testCaseId);
+    const testCase = (await testCaseStore.findById(testCaseId));
 
     if (!testCase) {
       return res.status(404).json({ success: false, error: 'Record not found' });
@@ -65,19 +66,19 @@ repositoryRoutes.get('/records/:testCaseId', requireRole(['Technician', 'Reviewe
       return res.status(403).json({ success: false, error: 'Unauthorized to view this record' });
     }
 
-    const { instrument, manufacturer, source } = caseMasterData(testCase);
+    const { instrument, manufacturer, source } = (await caseMasterData(testCase));
 
     // Historical contexts from Audit
-    const history = AuditService.getHistoryForTest(testCaseId);
+    const history = (await AuditService.getHistoryForTest(testCaseId));
 
     // Evidence associated with the report
-    const evidence = EvidenceService.getEvidenceForTestCase(testCaseId);
+    const evidence = (await EvidenceService.getEvidenceForTestCase(testCaseId));
 
     // If APPROVED, we can also generate a summary of the compliance report
     let complianceSummary = null;
     if (testCase.status === 'APPROVED') {
       try {
-        const reportData = ReportService.generateReportData(testCaseId, user.role);
+        const reportData = (await ReportService.generateReportData(testCaseId, user.role));
         complianceSummary = reportData.complianceSummary;
       } catch (e) {
         // Fallback or ignore if generation fails
@@ -94,10 +95,10 @@ repositoryRoutes.get('/records/:testCaseId', requireRole(['Technician', 'Reviewe
         history,
         evidence,
         complianceSummary,
-        programme: assessStoredProgramme(testCase)
+        programme: (await assessStoredProgramme(testCase))
       }
     });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
   }
-});
+}));

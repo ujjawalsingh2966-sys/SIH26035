@@ -1,3 +1,4 @@
+import { clearRepository } from './helpers/persistenceFixtures';
 import request from 'supertest';
 import app from '../src/app';
 import { testCaseStore, instrumentStore, manufacturerStore, auditStore } from '../src/repositories';
@@ -9,8 +10,14 @@ import { AuditService } from '../src/services/AuditService';
 
 let server: any;
 
-const technicianToken = testSession('tech123', 'Technician', 'tech@example.com');
-const reviewerToken = testSession('rev123', 'Reviewer', 'rev@example.com');
+let technicianToken: string;
+beforeAll(async () => {
+technicianToken = (await testSession('tech123', 'Technician', 'tech@example.com'));
+});
+let reviewerToken: string;
+beforeAll(async () => {
+reviewerToken = (await testSession('rev123', 'Reviewer', 'rev@example.com'));
+});
 
 beforeAll((done) => {
   server = app.listen(0, () => {
@@ -28,20 +35,20 @@ describe('Operational Dashboard and Repository API', () => {
   let tc1: TestCase;
   let tc2: TestCase;
 
-  beforeEach(() => {
-    testCaseStore.clear();
-    instrumentStore.clear();
-    manufacturerStore.clear();
-    auditStore.clear();
+  beforeEach(async () => {
+    (await clearRepository(testCaseStore));
+    (await clearRepository(instrumentStore));
+    (await clearRepository(manufacturerStore));
+    (await clearRepository(auditStore));
 
-    m1 = manufacturerStore.saveItem({
+    m1 = (await manufacturerStore.saveItem({
       id: 'mfg-1',
       name: 'RepoManufacturer',
       address: '123 Repo St',
       identifier: 'MFG-ID-1'
-    });
+    }));
 
-    i1 = instrumentStore.saveItem({
+    i1 = (await instrumentStore.saveItem({
       id: 'inst-1',
       manufacturerId: m1.id,
       name: 'Test Instrument',
@@ -57,9 +64,9 @@ describe('Operational Dashboard and Repository API', () => {
       e: '0.01',
       d: '0.01',
       hasTare: true
-    });
+    }));
 
-    tc1 = testCaseStore.saveItem({
+    tc1 = (await testCaseStore.saveItem({
       id: 'tc-repo-1',
       instrumentId: i1.id,
       technicianId: 'tech123',
@@ -74,9 +81,9 @@ describe('Operational Dashboard and Repository API', () => {
         tare: 'PASS' as any,
         zeroSetting: 'NOT APPLICABLE' as any
       }
-    });
+    }));
 
-    tc2 = testCaseStore.saveItem({
+    tc2 = (await testCaseStore.saveItem({
       id: 'tc-repo-2',
       instrumentId: i1.id,
       technicianId: 'tech-other', // different tech
@@ -91,16 +98,16 @@ describe('Operational Dashboard and Repository API', () => {
         tare: 'NOT STARTED',
         zeroSetting: 'NOT STARTED'
       }
-    });
+    }));
 
     // Mock a generated report audit
-    AuditService.recordEvent({
+    (await AuditService.recordEvent({
       testCaseId: tc1.id,
       action: 'REPORT_GENERATED',
       actorId: 'tech123',
       actorRole: 'Technician',
       metadata: { details: 'Generated PDF' }
-    });
+    }));
   });
 
   describe('GET /api/v1/repository/dashboard', () => {
@@ -125,7 +132,7 @@ describe('Operational Dashboard and Repository API', () => {
       const data = response.body.data;
       expect(data.approved).toBe(1);
       expect(data.reportsGenerated).toBe(1);
-      expect(data.totalActiveTests).toBe(0); 
+      expect(data.totalActiveTests).toBe(0);
     });
   });
 

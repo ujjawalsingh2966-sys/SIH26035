@@ -1,3 +1,4 @@
+import { unitOfWork } from '../repositories/persistence';
 import { testCaseStore, instrumentStore, manufacturerStore, auditStore } from '../repositories';
 import { TestCase, Instrument, Manufacturer, TestCaseStatus } from '../types/domain';
 import { caseMasterData } from './MasterDataService';
@@ -35,89 +36,93 @@ export class RepositoryService {
   /**
    * Search across the entire operational repository
    */
-  public static search(filters: SearchFilters, pagination: Pagination, user: { id: string; role: string }): { data: RepositoryListing[], total: number } {
-    const allTestCases = testCaseStore.findAll();
+  public static async search(filters: SearchFilters, pagination: Pagination, user: { id: string; role: string }): Promise<{ data: RepositoryListing[], total: number }> {
+    return unitOfWork.read(async () => {
+      const allTestCases = (await testCaseStore.findAll());
 
-    let filtered = allTestCases.filter(tc => this.userHasAccess(tc, user));
+      let filtered = allTestCases.filter(tc => this.userHasAccess(tc, user));
 
-    if (filters.status && filters.status.length > 0) {
-      filtered = filtered.filter(tc => filters.status!.includes(tc.status));
-    }
+      if (filters.status && filters.status.length > 0) {
+        filtered = filtered.filter(tc => filters.status!.includes(tc.status));
+      }
 
-    if (filters.dateFrom) {
-      const from = new Date(filters.dateFrom).getTime();
-      filtered = filtered.filter(tc => new Date(tc.updatedAt).getTime() >= from);
-    }
-    if (filters.dateTo) {
-      const to = new Date(filters.dateTo).getTime();
-      filtered = filtered.filter(tc => new Date(tc.updatedAt).getTime() <= to);
-    }
+      if (filters.dateFrom) {
+        const from = new Date(filters.dateFrom).getTime();
+        filtered = filtered.filter(tc => new Date(tc.updatedAt).getTime() >= from);
+      }
+      if (filters.dateTo) {
+        const to = new Date(filters.dateTo).getTime();
+        filtered = filtered.filter(tc => new Date(tc.updatedAt).getTime() <= to);
+      }
 
-    if (filters.testId) {
-      filtered = filtered.filter(tc => tc.id.toLowerCase().includes(filters.testId!.toLowerCase()));
-    }
+      if (filters.testId) {
+        filtered = filtered.filter(tc => tc.id.toLowerCase().includes(filters.testId!.toLowerCase()));
+      }
 
-    // Join Instrument and Manufacturer mapping to filter further
-    let listings: RepositoryListing[] = filtered.map(tc => {
-      const { instrument, manufacturer } = caseMasterData(tc);
-      return { testCase: tc, instrument: instrument || null, manufacturer: manufacturer || null };
+      // Join Instrument and Manufacturer mapping to filter further
+      let listings: RepositoryListing[] = (await Promise.all(filtered.map(async tc => {
+        const { instrument, manufacturer } = (await caseMasterData(tc));
+        return { testCase: tc, instrument: instrument || null, manufacturer: manufacturer || null };
+      })));
+
+      if (filters.manufacturer) {
+        const mfgLower = filters.manufacturer.toLowerCase();
+        listings = listings.filter(l => l.manufacturer?.name.toLowerCase().includes(mfgLower) || l.manufacturer?.id.toLowerCase().includes(mfgLower));
+      }
+
+      if (filters.model) {
+        const mdlLower = filters.model.toLowerCase();
+        listings = listings.filter(l => l.instrument?.model.toLowerCase().includes(mdlLower));
+      }
+
+      if (filters.query) {
+        const q = filters.query.toLowerCase();
+        listings = listings.filter(l =>
+          l.testCase.id.toLowerCase().includes(q) ||
+          (l.instrument && l.instrument.model.toLowerCase().includes(q)) ||
+          (l.manufacturer && l.manufacturer.name.toLowerCase().includes(q))
+        );
+      }
+
+      // Define default sort (newest first)
+      listings.sort((a, b) => new Date(b.testCase.updatedAt).getTime() - new Date(a.testCase.updatedAt).getTime());
+
+      const total = listings.length;
+      const startIndex = (pagination.page - 1) * pagination.limit;
+      const paginated = listings.slice(startIndex, startIndex + pagination.limit);
+
+      return { data: paginated, total };
     });
-
-    if (filters.manufacturer) {
-      const mfgLower = filters.manufacturer.toLowerCase();
-      listings = listings.filter(l => l.manufacturer?.name.toLowerCase().includes(mfgLower) || l.manufacturer?.id.toLowerCase().includes(mfgLower));
-    }
-
-    if (filters.model) {
-      const mdlLower = filters.model.toLowerCase();
-      listings = listings.filter(l => l.instrument?.model.toLowerCase().includes(mdlLower));
-    }
-
-    if (filters.query) {
-      const q = filters.query.toLowerCase();
-      listings = listings.filter(l =>
-        l.testCase.id.toLowerCase().includes(q) ||
-        (l.instrument && l.instrument.model.toLowerCase().includes(q)) ||
-        (l.manufacturer && l.manufacturer.name.toLowerCase().includes(q))
-      );
-    }
-
-    // Define default sort (newest first)
-    listings.sort((a, b) => new Date(b.testCase.updatedAt).getTime() - new Date(a.testCase.updatedAt).getTime());
-
-    const total = listings.length;
-    const startIndex = (pagination.page - 1) * pagination.limit;
-    const paginated = listings.slice(startIndex, startIndex + pagination.limit);
-
-    return { data: paginated, total };
   }
 
   /**
    * Retrieves dashboard metrics for a user
    */
-  public static getDashboardMetrics(user: { id: string; role: string }): DashboardMetrics {
-    const allTestCases = testCaseStore.findAll();
-    const accessible = allTestCases.filter(tc => this.userHasAccess(tc, user));
+  public static async getDashboardMetrics(user: { id: string; role: string }): Promise<DashboardMetrics> {
+    return unitOfWork.read(async () => {
+      const allTestCases = (await testCaseStore.findAll());
+      const accessible = allTestCases.filter(tc => this.userHasAccess(tc, user));
 
-    const totalActiveTests = accessible.filter(tc => ['DRAFT', 'TESTING'].includes(tc.status)).length;
-    const pendingReview = accessible.filter(tc => ['READY_FOR_REVIEW', 'UNDER_REVIEW'].includes(tc.status)).length;
-    const returned = accessible.filter(tc => tc.status === 'RETURNED_FOR_CORRECTION').length;
-    const approved = accessible.filter(tc => tc.status === 'APPROVED').length;
+      const totalActiveTests = accessible.filter(tc => ['DRAFT', 'TESTING'].includes(tc.status)).length;
+      const pendingReview = accessible.filter(tc => ['READY_FOR_REVIEW', 'UNDER_REVIEW'].includes(tc.status)).length;
+      const returned = accessible.filter(tc => tc.status === 'RETURNED_FOR_CORRECTION').length;
+      const approved = accessible.filter(tc => tc.status === 'APPROVED').length;
 
-    const allAudits = auditStore.findAll();
-    const generatedAuditEvents = allAudits.filter(a => a.action === 'REPORT_GENERATED');
-    const accessibleGenerated = generatedAuditEvents.filter(a => accessible.some(tc => tc.id === a.testCaseId));
+      const allAudits = (await auditStore.findAll());
+      const generatedAuditEvents = allAudits.filter(a => a.action === 'REPORT_GENERATED');
+      const accessibleGenerated = generatedAuditEvents.filter(a => accessible.some(tc => tc.id === a.testCaseId));
 
-    // Unique test cases that have had a report generated
-    const uniqueTestCasesGenerated = new Set(accessibleGenerated.map(a => a.testCaseId)).size;
+      // Unique test cases that have had a report generated
+      const uniqueTestCasesGenerated = new Set(accessibleGenerated.map(a => a.testCaseId)).size;
 
-    return {
-      totalActiveTests,
-      pendingReview,
-      returned,
-      approved,
-      reportsGenerated: uniqueTestCasesGenerated
-    };
+      return {
+        totalActiveTests,
+        pendingReview,
+        returned,
+        approved,
+        reportsGenerated: uniqueTestCasesGenerated
+      };
+    });
   }
 
   /**

@@ -1,3 +1,4 @@
+import { unitOfWork } from '../repositories/persistence';
 import { createHash } from 'crypto';
 import { auditStore, testCaseStore } from '../repositories';
 import { evidenceStore } from './EvidenceService';
@@ -11,10 +12,12 @@ const documentedStaff = new Set([
   'technician@example.com', 'technician2@example.com', 'reviewer@example.com', 'admin@example.com'
 ]);
 
-export function isKnownStaffEmail(email: string): boolean {
-  if (documentedStaff.has(email)) return true;
-  const id = developmentStaffId(email);
-  return testCaseStore.findAll().some(record => record.technicianId === id || record.reviewerId === id)
-    || auditStore.findAll().some(record => record.actorId === id)
-    || evidenceStore.findAll().some(record => record.uploadedBy === id);
+export async function isKnownStaffEmail(email: string): Promise<boolean> {
+  return unitOfWork.read(async () => {
+    if (documentedStaff.has(email)) return true;
+    const id = developmentStaffId(email);
+    return (await testCaseStore.findAll()).some(record => record.technicianId === id || record.reviewerId === id)
+      || (await auditStore.findAll()).some(record => record.actorId === id)
+      || (await evidenceStore.findAll()).some(record => record.uploadedBy === id);
+  });
 }

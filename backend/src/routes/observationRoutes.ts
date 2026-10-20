@@ -1,3 +1,4 @@
+import { withPersistence } from '../middlewares/withPersistence';
 import { touchTestCase } from '../services/TestCaseRevision';
 import { Router, Request, Response } from 'express';
 import { body } from 'express-validator';
@@ -13,11 +14,11 @@ import { nativeProgrammeIssue } from '../services/NativeApplicability';
 
 export const observationRoutes = Router();
 
-observationRoutes.get('/:testCaseId', requireTestCaseAccess(req => req.params.testCaseId), (req, res) => {
-  const all = observationStore.findAll();
+observationRoutes.get('/:testCaseId', requireTestCaseAccess(req => req.params.testCaseId), withPersistence(async (req, res) => {
+  const all = (await observationStore.findAll());
   const filtered = all.filter(o => o.testCaseId === req.params.testCaseId);
   res.json({ success: true, data: filtered });
-});
+}));
 
 observationRoutes.post(
   '/',
@@ -29,11 +30,11 @@ observationRoutes.post(
   body('indication').isString().notEmpty(),
   body('additionalWeights').isString().notEmpty(),
   validateRequest,
-  (req: Request, res: Response) => {
+  withPersistence(async (req: Request, res: Response) => {
     const data = req.body;
     const user = (req as any).user;
 
-    const testCase = testCaseStore.findById(data.testCaseId);
+    const testCase = (await testCaseStore.findById(data.testCaseId));
     if (!testCase) {
       return res.status(404).json({ success: false, error: 'Test case not found' });
     }
@@ -49,7 +50,7 @@ observationRoutes.post(
     const programmeError = testCase.nativeProgramme === undefined ? undefined : nativeProgrammeIssue(testCase.nativeProgramme);
     if (programmeError) return res.status(409).json({ success: false, error: programmeError });
 
-    const { instrument } = caseMasterData(testCase);
+    const { instrument } = (await caseMasterData(testCase));
     if (!instrument) {
       return res.status(404).json({ success: false, error: 'Instrument not found for this test case' });
     }
@@ -87,10 +88,10 @@ observationRoutes.post(
       return res.status(400).json({ success: false, error: `Evaluation failed: ${err.message}` });
     }
 
-    observationStore.saveItem(newObservation);
-    touchTestCase(testCase);
+    (await observationStore.saveItem(newObservation));
+    (await touchTestCase(testCase));
 
-    AuditService.recordEvent({
+    (await AuditService.recordEvent({
       testCaseId: testCase.id,
       actorId: user.id,
       actorRole: user.role,
@@ -100,10 +101,10 @@ observationRoutes.post(
         testType: newObservation.testType,
         verdict: newObservation.evaluation.compliance.verdict
       }
-    });
+    }));
 
     res.status(201).json({ success: true, data: newObservation });
-  }
+  })
 );
 
 // Corrections are allowed only after the owning technician resumes TESTING.
@@ -113,10 +114,10 @@ observationRoutes.put('/:id', requireRole(['Technician']),
   body('indication').isString().notEmpty(),
   body('additionalWeights').isString().notEmpty(),
   validateRequest,
-  (req, res) => {
-    const previous = observationStore.findById(req.params.id);
+  withPersistence(async (req, res) => {
+    const previous = (await observationStore.findById(req.params.id));
     if (!previous) return res.status(404).json({ success: false, error: 'Observation not found' });
-    const testCase = testCaseStore.findById(previous.testCaseId);
+    const testCase = (await testCaseStore.findById(previous.testCaseId));
     if (!testCase || testCase.technicianId !== req.user!.id) {
       return res.status(403).json({ success: false, error: 'Forbidden: Observation belongs to another technician' });
     }
@@ -125,7 +126,7 @@ observationRoutes.put('/:id', requireRole(['Technician']),
     }
     const programmeError = testCase.nativeProgramme === undefined ? undefined : nativeProgrammeIssue(testCase.nativeProgramme);
     if (programmeError) return res.status(409).json({ success: false, error: programmeError });
-    const { instrument } = caseMasterData(testCase);
+    const { instrument } = (await caseMasterData(testCase));
     if (!instrument) return res.status(404).json({ success: false, error: 'Instrument not found' });
     const updated: ObservationRecord = {
       ...previous,
@@ -138,20 +139,20 @@ observationRoutes.put('/:id', requireRole(['Technician']),
     } catch (err: any) {
       return res.status(400).json({ success: false, error: `Evaluation failed: ${err.message}` });
     }
-    AuditService.recordEvent({
+    (await AuditService.recordEvent({
       testCaseId: testCase.id, actorId: req.user!.id, actorRole: req.user!.role,
       action: 'OBSERVATION_UPDATED', metadata: { observationId: previous.id, previous, updated }
-    });
-    observationStore.saveItem(updated);
-    touchTestCase(testCase);
+    }));
+    (await observationStore.saveItem(updated));
+    (await touchTestCase(testCase));
     res.json({ success: true, data: updated });
-  }
+  })
 );
 
-observationRoutes.delete('/:id', requireRole(['Technician']), (req, res) => {
-  const previous = observationStore.findById(req.params.id);
+observationRoutes.delete('/:id', requireRole(['Technician']), withPersistence(async (req, res) => {
+  const previous = (await observationStore.findById(req.params.id));
   if (!previous) return res.status(404).json({ success: false, error: 'Observation not found' });
-  const testCase = testCaseStore.findById(previous.testCaseId);
+  const testCase = (await testCaseStore.findById(previous.testCaseId));
   if (!testCase || testCase.technicianId !== req.user!.id) {
     return res.status(403).json({ success: false, error: 'Forbidden: Observation belongs to another technician' });
   }
@@ -160,11 +161,11 @@ observationRoutes.delete('/:id', requireRole(['Technician']), (req, res) => {
   }
   const programmeError = testCase.nativeProgramme === undefined ? undefined : nativeProgrammeIssue(testCase.nativeProgramme);
   if (programmeError) return res.status(409).json({ success: false, error: programmeError });
-  AuditService.recordEvent({
+  (await AuditService.recordEvent({
     testCaseId: testCase.id, actorId: req.user!.id, actorRole: req.user!.role,
     action: 'OBSERVATION_DELETED', metadata: { observationId: previous.id, previous }
-  });
-  observationStore.deleteItem(previous.id);
-  touchTestCase(testCase);
+  }));
+  (await observationStore.deleteItem(previous.id));
+  (await touchTestCase(testCase));
   res.json({ success: true });
-});
+}));

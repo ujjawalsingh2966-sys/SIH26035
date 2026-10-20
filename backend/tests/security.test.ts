@@ -1,3 +1,4 @@
+import { clearRepository } from './helpers/persistenceFixtures';
 import request from 'supertest';
 import app from '../src/app';
 import { testCaseStore, instrumentStore, manufacturerStore } from '../src/repositories';
@@ -8,9 +9,18 @@ import { testSession } from './helpers/persistedIdentity';
 
 let server: any;
 
-const technician1Token = testSession('tech-1', 'Technician', 't1@example.com');
-const technician2Token = testSession('tech-2', 'Technician', 't2@example.com');
-const reviewerToken = testSession('rev123', 'Reviewer', 'rev@example.com');
+let technician1Token: string;
+beforeAll(async () => {
+technician1Token = (await testSession('tech-1', 'Technician', 't1@example.com'));
+});
+let technician2Token: string;
+beforeAll(async () => {
+technician2Token = (await testSession('tech-2', 'Technician', 't2@example.com'));
+});
+let reviewerToken: string;
+beforeAll(async () => {
+reviewerToken = (await testSession('rev123', 'Reviewer', 'rev@example.com'));
+});
 
 beforeAll((done) => {
   server = app.listen(0, () => {
@@ -27,19 +37,19 @@ describe('Security and Access Control Test Suite', () => {
   let i1: Instrument;
   let tcTech1: TestCase;
 
-  beforeEach(() => {
-    testCaseStore.clear();
-    instrumentStore.clear();
-    manufacturerStore.clear();
+  beforeEach(async () => {
+    (await clearRepository(testCaseStore));
+    (await clearRepository(instrumentStore));
+    (await clearRepository(manufacturerStore));
 
-    m1 = manufacturerStore.saveItem({
+    m1 = (await manufacturerStore.saveItem({
       id: 'mfg-sec',
       name: 'Secured Manufacturer',
       address: '123 Secure St',
       identifier: 'SEC-01'
-    });
+    }));
 
-    i1 = instrumentStore.saveItem({
+    i1 = (await instrumentStore.saveItem({
       id: 'inst-sec',
       manufacturerId: m1.id,
       name: 'Sec Instrument',
@@ -55,9 +65,9 @@ describe('Security and Access Control Test Suite', () => {
       e: '0.01',
       d: '0.01',
       hasTare: true
-    });
+    }));
 
-    tcTech1 = testCaseStore.saveItem({
+    tcTech1 = (await testCaseStore.saveItem({
       id: 'tc-sec-1',
       instrumentId: i1.id,
       technicianId: 'tech-1',
@@ -77,7 +87,7 @@ describe('Security and Access Control Test Suite', () => {
         humidity: '50',
         pressure: '1013'
       }
-    });
+    }));
   });
 
   describe('1. Authentication Validation', () => {
@@ -109,7 +119,7 @@ describe('Security and Access Control Test Suite', () => {
     it('should escape XSS payloads in HTML artifacts', async () => {
       // Force test case into APPROVED status to allow report generation
       tcTech1.status = 'APPROVED';
-      testCaseStore.saveItem(tcTech1);
+      (await testCaseStore.saveItem(tcTech1));
 
       // Tech-1 generated HTML report
       const response = await request(server)

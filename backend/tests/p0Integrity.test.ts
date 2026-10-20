@@ -1,3 +1,4 @@
+import { clearRepository } from './helpers/persistenceFixtures';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import app from '../src/app';
@@ -21,8 +22,14 @@ const instrument: Instrument = {
 };
 const manufacturer: Manufacturer = { id: instrument.manufacturerId, name: 'Synthetic manufacturer', address: 'Isolated test site', identifier: 'P0-M' };
 const now = '2026-10-18T10:00:00Z';
-const technician = testSession('p0-tech', 'Technician', 'p0-tech@example.test');
-const reviewer = testSession('p0-reviewer', 'Reviewer', 'p0-reviewer@example.test');
+let technician: string;
+beforeAll(async () => {
+technician = (await testSession('p0-tech', 'Technician', 'p0-tech@example.test'));
+});
+let reviewer: string;
+beforeAll(async () => {
+reviewer = (await testSession('p0-reviewer', 'Reviewer', 'p0-reviewer@example.test'));
+});
 const core: ObservationType[] = ['WEIGHING', 'ECCENTRICITY', 'REPEATABILITY', 'ZERO_SETTING'];
 const raw = { testType: 'WEIGHING' as const, load: '5000', indication: '5005', additionalWeights: '2.5', unit: 'g' as const };
 function fixture() {
@@ -45,9 +52,9 @@ function fixture() {
   });
   return { testCase, observations };
 }
-beforeEach(() => {
-  manufacturerStore.clear(); instrumentStore.clear(); testCaseStore.clear(); observationStore.clear(); auditStore.clear();
-  manufacturerStore.saveItem(manufacturer); instrumentStore.saveItem(instrument);
+beforeEach(async () => {
+  (await clearRepository(manufacturerStore)); (await clearRepository(instrumentStore)); (await clearRepository(testCaseStore)); (await clearRepository(observationStore)); (await clearRepository(auditStore));
+  (await manufacturerStore.saveItem(manufacturer)); (await instrumentStore.saveItem(instrument));
 });
 
 describe('P0 precise observation units', () => {
@@ -102,10 +109,10 @@ describe('P0 precise observation units', () => {
     expect(fail.compliance.verdict).toBe('FAIL');
   });
   it('rejects invalid units over the real HTTP API without persisting or auditing', async () => {
-    const { testCase } = fixture(); testCase.status = 'TESTING'; testCaseStore.saveItem(testCase);
+    const { testCase } = fixture(); testCase.status = 'TESTING'; (await testCaseStore.saveItem(testCase));
     await request(app).post('/api/v1/observations').set('Authorization', `Bearer ${technician}`)
       .send({ ...raw, unit: 'lb', testCaseId: testCase.id, sequence: 1 }).expect(400);
-    expect(observationStore.findAll()).toHaveLength(0); expect(auditStore.findAll()).toHaveLength(0);
+    expect((await observationStore.findAll())).toHaveLength(0); expect((await auditStore.findAll())).toHaveLength(0);
   });
 });
 
@@ -152,24 +159,24 @@ describe('P0 programme completeness and finalization', () => {
       observations[0].indication = '5010';
       observations[0].evaluation = EvaluationService.evaluateObservation(instrument, observations[0], true);
     }
-    testCaseStore.saveItem(testCase); observations.forEach(row => observationStore.saveItem(row));
+    (await testCaseStore.saveItem(testCase)); (await Promise.all(observations.map(async row => (await observationStore.saveItem(row)))));
     const assessment = assessProgramme(testCase, instrument, manufacturer, observations);
     expect(assessment.complete).toBe(true); expect(assessment.overallVerdict).toBe(verdict);
     expect(assessment.tests.TARE).toMatchObject({ status: 'NOT APPLICABLE', reason: expect.stringContaining('hasTare=false') });
     await request(app).post(`/api/v1/test-cases/${testCase.id}/workflow/approve`).set('Authorization', `Bearer ${reviewer}`)
       .send({ expectedRevision: 0 }).expect(200);
-    const report = ReportService.generateReportData(testCase.id, 'Reviewer');
+    const report = (await ReportService.generateReportData(testCase.id, 'Reviewer'));
     expect(report.status).toBe('FINAL'); expect(report.complianceSummary.overallVerdict).toBe(verdict);
   });
   it('never turns a single PASS row and absent programme into overall PASS or final approval', async () => {
     const { testCase, observations } = fixture(); delete testCase.programmeDetermination;
-    testCaseStore.saveItem(testCase); observationStore.saveItem(observations[0]);
+    (await testCaseStore.saveItem(testCase)); (await observationStore.saveItem(observations[0]));
     const assessment = assessProgramme(testCase, instrument, manufacturer, [observations[0]]);
     expect(assessment.overallVerdict).toBe('INCOMPLETE'); expect(assessment.observedOutcome).toBe('PASS');
     expect(assessment.tests.ECCENTRICITY.status).toBe('NOT STARTED');
     await request(app).post(`/api/v1/test-cases/${testCase.id}/workflow/approve`).set('Authorization', `Bearer ${reviewer}`)
       .send({ expectedRevision: 0 }).expect(409);
-    expect(testCaseStore.findById(testCase.id)?.status).toBe('UNDER_REVIEW'); expect(auditStore.findAll()).toHaveLength(0);
+    expect((await testCaseStore.findById(testCase.id))?.status).toBe('UNDER_REVIEW'); expect((await auditStore.findAll())).toHaveLength(0);
   });
   it.each(['BLOCKED', 'INCONCLUSIVE'])('does not accept a %s saved evaluation as complete', verdict => {
     const { testCase, observations } = fixture(); observations[0].evaluation!.compliance.verdict = verdict as any;
@@ -185,16 +192,16 @@ describe('P0 programme completeness and finalization', () => {
     observations[0].load = '6000';
     expect(assessProgramme(testCase, instrument, manufacturer, observations).complete).toBe(false);
   });
-  it('keeps legacy approved records unchanged while downgrading newly generated incomplete output', () => {
+  it('keeps legacy approved records unchanged while downgrading newly generated incomplete output', async () => {
     const { testCase, observations } = fixture(); testCase.status = 'APPROVED'; delete testCase.programmeDetermination;
     delete observations[0].evaluation!.calculationVersion;
-    testCaseStore.saveItem(testCase); observationStore.saveItem(observations[0]);
+    (await testCaseStore.saveItem(testCase)); (await observationStore.saveItem(observations[0]));
     const before = JSON.stringify({ testCase, observations });
-    const report = ReportService.generateReportData(testCase.id, 'Reviewer');
+    const report = (await ReportService.generateReportData(testCase.id, 'Reviewer'));
     expect(report.status).toBe('PROTOTYPE'); expect(report.complianceSummary.overallVerdict).toBe('INCOMPLETE');
     expect(JSON.stringify({ testCase, observations })).toBe(before);
-    expect(ReportService.generateHtmlReport(testCase.id, 'Reviewer')).toContain('not a final compliance report');
-    expect(ReportService.generatePdfReport(testCase.id, 'Reviewer').toString('latin1')).toContain('Overall: INCOMPLETE');
+    expect((await ReportService.generateHtmlReport(testCase.id, 'Reviewer'))).toContain('not a final compliance report');
+    expect((await ReportService.generatePdfReport(testCase.id, 'Reviewer')).toString('latin1')).toContain('Overall: INCOMPLETE');
   });
   it.each(['manufacturer', 'instrument', 'conditions'])('requires complete %s information', missing => {
     const { testCase, observations } = fixture();

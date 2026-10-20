@@ -6,6 +6,10 @@ This repository is a **local prototype**, not an accredited certification servic
 
 ## Current scope and status
 
+**Persistence Phase 2B.2 (20 October 2026):** an explicit, server-only repository bundle/factory now supports the retained JSON adapter and a PostgreSQL adapter verified with a fake driver. **`PERSISTENCE_ADAPTER=json` remains the default.** All eleven stores select together; PostgreSQL failures never fall back to JSON. Fresh results: **822 backend tests / 0 failures, 33 suites** (125 new adapter tests included), **54 frontend tests / 0 failures**, TypeScript and whitespace checks pass. No real database query, schema/RLS setup, data migration or activation was performed. Existing authentication, metrology, API/report rules and dirty Phase 2A/plumbing work are preserved. See the [compatibility contract, file inventory, verification and Phase 2B.3 prerequisites](docs/PHASE_2B_PERSISTENCE_CONTRACT.md). Earlier phase results below are historical; this does not resolve the Windows rename or P4A browser blockers. Separate approval is required before any real integration.
+
+**Persistence migration Phase 2A (20 October 2026):** asynchronous repository/unit-of-work interfaces now use the retained JSON adapter, detached values, staged writes, single-process serialization and compensating rollback. Fresh isolated backend verification: **626 passed / 0 failed, 26 suites** (baseline 603/0). No PostgreSQL connection, journal, schema migration or production-data migration was performed. JSON still has **no multi-file crash atomicity**; the historical Windows `rename EPERM` and P4A browser blockers are not claimed fixed. See [Phase 2A implementation, exact scope and verification](docs/PHASE_2A_ASYNC_PERSISTENCE.md).
+
 **P4A is partial and blocked (19 October 2026):** the fresh P3.1 automated gate passed before edits. Opt-in versioned performance plans/calculations/forms have been added locally, without migrating P3 history or removing final-approval blockers. Browser verification repeatedly encountered staff provisioning HTTP 503 (`rename EPERM` during strict JSON replacement); the one completed attempt passed all prior nested regressions but failed the new declaration scenario. The accessible-name repair is not browser-accepted yet. Work stopped under the prerequisite rule; **do not treat P4A as complete or proceed to P4B**. See [coverage, implementation, actual results and blockers](docs/P4A_METROLOGICAL_PERFORMANCE.md) and [native API contract](docs/NATIVE_PROGRAMME_API.md).
 
 **Previous verified P3.1 baseline (18 October):** strict enum validation, explicit test-purpose dispatch and invalid-history blocking passed all four previously failing P4 prerequisite checks. That phase verified 523 backend tests, 39 frontend tests and 10 focused P3.1 browser scenarios. P4A had not started at that point; its current partial/blocked status is above. Final approval remains fail-closed for missing mandatory coverage. See [repair evidence](docs/P3_1_VALIDATION_AND_DISPATCH_REPAIR.md) and the [historical P4 audit](docs/P4_COMPLETE_OIML_TEST_COVERAGE.md).
@@ -64,7 +68,7 @@ Applications persist in their own `applications.json` using existing `DATA_DIR`/
 - **Frontend:** Next.js 14 App Router, React 18, TypeScript, Tailwind CSS 3, Lucide icons; current light/dark utilities follow the browser's `prefers-color-scheme`.
 - **Backend:** Node.js, Express 4, TypeScript, express-validator, JWT, Helmet, CORS and Winston. Business passwords use Node's salted scrypt and timing-safe comparison.
 - **Evaluation:** decimal.js calculations → applicability/MPE rules → compliance verdict/trace, persisted with each observation.
-- **Storage:** single-process JSON stores. Evidence metadata and optional base64 content are stored in JSON. Accounts, Business applications and P2 master records use opt-in atomic replacement/error rollback; ordinary laboratory case/observation stores retain their existing behavior. Use one writer per data directory.
+- **Storage:** asynchronous repository/unit-of-work ports backed by the existing single-process JSON files. Evidence metadata and optional base64 content remain in JSON. Application writes are staged, use strict file replacement/error propagation and publish only after commit, with best-effort compensating rollback. Use one writer per data directory. There is no durable multi-file transaction/recovery journal; see [Phase 2A guarantees and limits](docs/PHASE_2A_ASYNC_PERSISTENCE.md).
 - **Reports:** saved evaluation aggregation, SHA-256 dataset fingerprint, escaped HTML and the repository's PDF generator. No PDF browser service or official signing provider is configured.
 - **Verification:** Jest/ts-jest/Supertest backend tests and Playwright Chromium browser runners using the real local backend. The npm lockfile pins the installed dependency graph.
 
@@ -107,6 +111,7 @@ Copy [backend/.env.example](backend/.env.example) to `backend/.env`, and [fronte
 | `JWT_SECRET` | Private random signing secret, at least 32 characters; required in production. If omitted locally, a private durable random key is generated in DATA_DIR/authSecrets.json. No shared fallback. |
 | `CLIENT_URL` | Comma-separated exact permitted frontend origins, e.g. `http://localhost:3000,http://127.0.0.1:3014` |
 | `DATA_DIR` | Optional absolute path to local persistence; use a separate directory for synthetic testing |
+| `DATABASE_URL` | Optional, server-only PostgreSQL transaction-pooler URL for the separate connection tool; JSON remains active. Never use a `NEXT_PUBLIC_*` variable. See [connection setup](docs/POSTGRES_CONNECTION_SETUP.md). |
 | `NEXT_PUBLIC_API_BASE_URL` | Frontend backend origin, e.g. `http://localhost:4000`; public configuration, never a secret |
 | `W8LAB_BROWSER_BUILD_DIR` | Optional separate Next cache for verification; selects `tsconfig.browser.json` |
 
@@ -136,6 +141,12 @@ npm run start --workspace backend
 npm run start --workspace frontend
 ```
 
+## Optional PostgreSQL connection plumbing
+
+The backend includes `pg`, a lazy bounded pool and an explicitly gated `db:health` command. This is connection preparation only: application routes, authentication and repositories still use the existing JSON adapter. Normal startup and `/api/v1/health` do not contact PostgreSQL or require `DATABASE_URL`.
+
+See [private environment setup, verified TLS, mocked tests and Vercel limitations](docs/POSTGRES_CONNECTION_SETUP.md). **A real connection check requires separate approval.** No Supabase connection, table creation, data migration or Vercel deployment has been performed by this implementation.
+
 ## Accounts and authentication limits
 
 Business users visit `/register`, enter name/email/password, then sign in at `/business/login` and land at `/applications`. `/account` remains available from Business navigation. Registration only creates Business accounts, rejects role escalation and normalized duplicate emails, and reserves documented/referenced staff identities. Passwords are hashed; hashes never appear in account responses. See [account policy and verification](docs/BUSINESS_ACCOUNTS_SLICE_2026-10-16.md) and the [application slice](docs/BUSINESS_APPLICATION_SLICE_2026-10-17.md).
@@ -151,7 +162,7 @@ Both account types use eight-hour signed Bearer tokens plus a persistent, hashed
 ## Checks and real-browser setup
 
 ```sh
-npm run test --workspace backend -- --runInBand --coverageReporters=text-summary --coverageReporters=json
+node backend/tools/test-isolated.cjs
 npm run test --workspace frontend
 npm run build --workspace backend
 node node_modules/typescript/bin/tsc --noEmit --incremental false -p frontend/tsconfig.browser.json

@@ -8,11 +8,12 @@ declare global {
     interface Request {
       user?: { id: string; role: string; email: string };
       sessionId?: string;
+      recheckRevision?: boolean;
     }
   }
 }
 
-export const authenticate = (req: Request, res: Response, next: NextFunction) => {
+export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     return res.status(401).json({ success: false, error: 'Unauthorized: Missing or invalid token' });
@@ -20,7 +21,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
 
   const token = authHeader.split(' ')[1];
   try {
-    const session = resolveSession(token);
+    const session = (await resolveSession(token));
     if (!session) return res.status(401).json({ success: false, error: 'Session is unavailable. Please sign in again.' });
     req.user = session.user;
     req.sessionId = session.sessionId;

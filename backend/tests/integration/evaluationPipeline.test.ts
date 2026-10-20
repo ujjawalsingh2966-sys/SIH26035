@@ -1,3 +1,4 @@
+import { clearRepository } from '../helpers/persistenceFixtures';
 import request from 'supertest';
 import app from '../../src/app';
 import { testCaseStore, instrumentStore, manufacturerStore, observationStore } from '../../src/repositories';
@@ -7,7 +8,10 @@ import { testSession } from '../helpers/persistedIdentity';
 
 let server: any;
 
-const technicianToken = testSession('tech-eval-1', 'Technician', 'tech-eval@example.com');
+let technicianToken: string;
+beforeAll(async () => {
+technicianToken = (await testSession('tech-eval-1', 'Technician', 'tech-eval@example.com'));
+});
 
 beforeAll((done) => {
   server = app.listen(0, () => done());
@@ -26,18 +30,18 @@ afterAll((done) => {
 describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Compliance)', () => {
   let manufacturerId: string;
 
-  beforeEach(() => {
-    testCaseStore.clear();
-    instrumentStore.clear();
-    manufacturerStore.clear();
-    observationStore.clear();
+  beforeEach(async () => {
+    (await clearRepository(testCaseStore));
+    (await clearRepository(instrumentStore));
+    (await clearRepository(manufacturerStore));
+    (await clearRepository(observationStore));
 
-    manufacturerStore.saveItem({
+    (await manufacturerStore.saveItem({
       id: 'mfg-eval',
       name: 'Eval Manufacturer',
       address: '1 Eval St',
       identifier: 'EVAL-01'
-    });
+    }));
     manufacturerId = 'mfg-eval';
   });
 
@@ -130,7 +134,7 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
     const submitRes = await request(server)
       .post(`/api/v1/test-cases/${testCaseId}/workflow/submit`)
       .set('Authorization', `Bearer ${technicianToken}`)
-      .send({ expectedRevision: testCaseStore.findById(testCaseId)!.revision ?? 0 })
+      .send({ expectedRevision: (await testCaseStore.findById(testCaseId))!.revision ?? 0 })
       .expect(200);
     expect(submitRes.body.data.status).toBe('READY_FOR_REVIEW');
   });
@@ -157,8 +161,8 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
     // Keep the original observation-time safety assertion for existing records.
     const instrument = await createInScopeInstrument();
     const testCaseId = await createTestCaseInTesting(instrument.id);
-    instrumentStore.saveItem({ ...instrument, accuracyClass: undefined, e: undefined });
-    testCaseStore.saveItem({ ...testCaseStore.findById(testCaseId)!, masterDataSnapshot: undefined });
+    (await instrumentStore.saveItem({ ...instrument, accuracyClass: undefined, e: undefined }));
+    (await testCaseStore.saveItem({ ...(await testCaseStore.findById(testCaseId))!, masterDataSnapshot: undefined }));
 
     const obsRes = await request(server)
       .post('/api/v1/observations')
@@ -181,7 +185,7 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
     const submitRes = await request(server)
       .post(`/api/v1/test-cases/${testCaseId}/workflow/submit`)
       .set('Authorization', `Bearer ${technicianToken}`)
-      .send({ expectedRevision: testCaseStore.findById(testCaseId)!.revision ?? 0 })
+      .send({ expectedRevision: (await testCaseStore.findById(testCaseId))!.revision ?? 0 })
       .expect(400);
     expect(submitRes.body.error).toContain('no observations have been recorded');
   });
@@ -193,7 +197,7 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
     // Directly persists an observation bypassing the route's evaluation step, simulating a
     // data state where evaluation never completed - the gate must catch this defensively,
     // not just rely on the route always calling EvaluationService.
-    observationStore.saveItem({
+    (await observationStore.saveItem({
       id: 'obs-unevaluated',
       testCaseId,
       testType: 'WEIGHING',
@@ -201,12 +205,12 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
       load: '5000',
       indication: '5005',
       additionalWeights: '3'
-    });
+    }));
 
     const submitRes = await request(server)
       .post(`/api/v1/test-cases/${testCaseId}/workflow/submit`)
       .set('Authorization', `Bearer ${technicianToken}`)
-      .send({ expectedRevision: testCaseStore.findById(testCaseId)!.revision ?? 0 })
+      .send({ expectedRevision: (await testCaseStore.findById(testCaseId))!.revision ?? 0 })
       .expect(400);
     expect(submitRes.body.error).toContain('not completed evaluation');
   });
@@ -224,21 +228,21 @@ describe('Live Evaluation Pipeline Integration (Calculation -> Rule -> Complianc
     await request(server)
       .post(`/api/v1/test-cases/${testCaseId}/workflow/submit`)
       .set('Authorization', `Bearer ${technicianToken}`)
-      .send({ expectedRevision: testCaseStore.findById(testCaseId)!.revision ?? 0 })
+      .send({ expectedRevision: (await testCaseStore.findById(testCaseId))!.revision ?? 0 })
       .expect(200);
 
-    const reviewerToken = testSession('rev-eval-1', 'Reviewer', 'rev-eval@example.com');
+    const reviewerToken = (await testSession('rev-eval-1', 'Reviewer', 'rev-eval@example.com'));
 
     await request(server)
       .post(`/api/v1/test-cases/${testCaseId}/workflow/start-review`)
       .set('Authorization', `Bearer ${reviewerToken}`)
-      .send({ expectedRevision: testCaseStore.findById(testCaseId)!.revision ?? 0 })
+      .send({ expectedRevision: (await testCaseStore.findById(testCaseId))!.revision ?? 0 })
       .expect(200);
 
     await request(server)
       .post(`/api/v1/test-cases/${testCaseId}/workflow/approve`)
       .set('Authorization', `Bearer ${reviewerToken}`)
-      .send({ expectedRevision: testCaseStore.findById(testCaseId)!.revision ?? 0 })
+      .send({ expectedRevision: (await testCaseStore.findById(testCaseId))!.revision ?? 0 })
       .expect(409);
 
     await request(server)
