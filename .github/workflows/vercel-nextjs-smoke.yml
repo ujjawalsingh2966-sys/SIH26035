@@ -12,6 +12,7 @@ on:
       - package-lock.json
       - .github/workflows/vercel-nextjs-smoke.yml
       - vercel.json
+      - frontend/vercel.json
 
 permissions:
   contents: read
@@ -33,6 +34,8 @@ jobs:
           NEXT_TELEMETRY_DISABLED: '1'
           NEXT_PUBLIC_API_BASE_URL: https://w8lab-api.onrender.com
         run: npm run build --workspace frontend
+      - name: Check frontend Vercel configuration
+        run: node -e "const c=require('./frontend/vercel.json'); if(c.framework!=='nextjs'||c.installCommand!=='npm ci'||c.buildCommand!=='npm run build') process.exit(1)"
       - name: Check npm workspace install from frontend directory
         working-directory: frontend
         run: npm ci --no-audit --no-fund
