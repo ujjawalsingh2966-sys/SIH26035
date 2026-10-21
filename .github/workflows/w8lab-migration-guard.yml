@@ -9,6 +9,8 @@ on:
       - backend/tools/import-json-to-postgres.cjs
       - backend/tests/jsonMigrationPreflight.test.cjs
       - backend/tests/jsonMigrationImport.test.cjs
+      - backend/tests/jsonMigrationPostgres.integration.cjs
+      - database/migrations/**
       - .github/workflows/w8lab-migration-guard.yml
   pull_request:
     paths:
@@ -16,6 +18,8 @@ on:
       - backend/tools/import-json-to-postgres.cjs
       - backend/tests/jsonMigrationPreflight.test.cjs
       - backend/tests/jsonMigrationImport.test.cjs
+      - backend/tests/jsonMigrationPostgres.integration.cjs
+      - database/migrations/**
       - .github/workflows/w8lab-migration-guard.yml
 
 permissions:
@@ -24,11 +28,34 @@ permissions:
 jobs:
   synthetic-migration:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci-ephemeral-postgres-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
       - name: Run isolated JSON importer regression tests
         run: node --test backend/tests/jsonMigrationPreflight.test.cjs backend/tests/jsonMigrationImport.test.cjs
+      - name: Install locked dependencies without install scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build backend mappings
+        run: npm run build --workspace backend
+      - name: Run PostgreSQL 17 real-SQL integration against disposable CI container
+        env:
+          W8LAB_ISOLATED_PG_TEST: '1'
+          W8LAB_DB_IS_DISPOSABLE: 'true'
+          W8LAB_TEST_POSTGRES_PASSWORD: ci-ephemeral-postgres-only
+        run: node --test backend/tests/jsonMigrationPostgres.integration.cjs
