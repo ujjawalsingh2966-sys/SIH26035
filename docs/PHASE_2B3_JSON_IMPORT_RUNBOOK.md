@@ -46,6 +46,16 @@ npm.cmd run db:health --workspace backend -- --connect
 
 The existing `db:health` is a read-only `SELECT 1` probe; successful health does not prove schema, RLS or record parity.
 
+## Step 3B — Final read-only source/backup parity (before any real import)
+
+Keep all JSON-writing W8LAB processes **stopped**. Fetch the updated feature branch in a separate `git worktree` to avoid overwriting existing untracked migration-tooling files on the user's current development branch. From the isolated worktree, run:
+
+```powershell
+node backend/tools/verify-migration-readiness.cjs --source-dir 'C:\\path\\to\\original\\SIH26035\\data' --backup-dir 'C:\\Users\\YOUR_USER\\W8LAB-private-backup-YYYYMMDD-HHMMSS'
+```
+
+This guard is offline/read-only. It compares every currently present collection against the immutable backup manifest by file SHA-256 and normalized serial hashes, detects added/missing JSON collections, and checks that `authSecrets.json` exists in **both** directories with identical bytes. It never outputs account emails, IDs, signing material, connection strings or hashes. A PASS does not prove that the backend/other jobs are actually frozen; an operator must ensure no writers remain. If it fails, **stop**: do not enable `--acknowledge-missing-collections` as a workaround. Review source changes and make a fresh byte-verified snapshot while writers are stopped.
+
 ## Step 4 — Explicit import from the frozen, verified backup
 
 **Not executed: the private backup and production login password exist only on the user's local machine.** Only after reviewing source and target backups, all legacy orphans, missing collections, private role setup, recovery procedures and a maintenance window:
