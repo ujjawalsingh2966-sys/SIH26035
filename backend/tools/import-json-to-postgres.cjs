@@ -27,7 +27,7 @@ async function importTransaction(client, backupDir, manifest, mappingFor, projec
   const role = who.rows[0];
   if (!role || role.rolsuper || role.rolbypassrls || !role.rolcanlogin || !role.member || role.schema_count !== 1)
     throw new Error('RUNTIME_ROLE_NOT_SAFE');
-  let inTransaction=false,committed=false;
+  let inTransaction=false,commitAttempted=false;
   try {
     await client.query('BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE'); inTransaction=true;
     await client.query('SET LOCAL ROLE w8lab_runtime');
@@ -58,14 +58,19 @@ async function importTransaction(client, backupDir, manifest, mappingFor, projec
       const placeholders=columns.map((_,i)=>'$'+(i+1)).join(', ');
       let order=0;
       for (const record of plans.get(table)) {
-        const values=[record.id,JSON.stringify(record),String(++order),...projections(mapping,record)];
-        const inserted=await client.query('INSERT INTO w8lab.'+table+' ('+columns.join(', ')+') VALUES ('+placeholders+')',values);
-        if (inserted.rowCount!==1) throw new Error('INSERT_NOT_ACKNOWLEDGED');
+        const projected=projections(mapping,record);
+        const values=[record.id,JSON.stringify(record),String(++order),...projected];
+        // Match the production adapter: reserve normalized identity *before* the account.
+        // Both writes share this transaction; on any failure ROLLBACK removes the reservation.
         if (mapping.identityKind) {
+          if (mapping.columns[0] !== 'email_normalized' || typeof projected[0] !== 'string')
+            throw new Error('IDENTITY_MAPPING_INVALID');
           const reservation=await client.query('INSERT INTO w8lab.identity_keys (kind,account_id,email_normalized) VALUES ($1,$2,$3)',
-            [mapping.identityKind,record.id,values[3]]);
+            [mapping.identityKind,record.id,projected[0]]);
           if (reservation.rowCount!==1) throw new Error('IDENTITY_NOT_ACKNOWLEDGED');
         }
+        const inserted=await client.query('INSERT INTO w8lab.'+table+' ('+columns.join(', ')+') VALUES ('+placeholders+')',values);
+        if (inserted.rowCount!==1) throw new Error('INSERT_NOT_ACKNOWLEDGED');
       }
     }
     for (const entry of COLLECTIONS) {
@@ -75,12 +80,20 @@ async function importTransaction(client, backupDir, manifest, mappingFor, projec
         hash(Buffer.from(JSON.stringify(copy),'utf8'))!==(entryByTable.get(entry.table).serializedSha256||hash(Buffer.from('[]'))))
         throw new Error('RECONCILIATION_FAILED');
     }
-    await client.query('COMMIT');committed=true;inTransaction=false;
+    // Force deferred FK validation while we still control the transaction.
+    await client.query('SET CONSTRAINTS ALL IMMEDIATE');
+    // Once COMMIT is sent, a transport error cannot prove whether it committed.
+    // Never ROLLBACK, retry or classify this as a known failure without reconciliation.
+    commitAttempted=true;
+    await client.query('COMMIT');
+    inTransaction=false;
   } catch {
-    if (inTransaction&&!committed) {
-      try { await client.query('ROLLBACK'); } catch { throw new Error('ROLLBACK_UNCERTAIN_STOP_AND_INSPECT'); }
+    if (commitAttempted) throw new Error('COMMIT_OUTCOME_UNKNOWN_STOP_AND_RECONCILE');
+    if (inTransaction) {
+      try { await client.query('ROLLBACK'); }
+      catch { throw new Error('ROLLBACK_UNCERTAIN_STOP_AND_INSPECT'); }
     }
-    throw new Error(committed?'COMMIT_UNKNOWN_STOP_AND_INSPECT':'IMPORT_FAILED_CHECK_CONSTRAINTS_AND_LOGS');
+    throw new Error('IMPORT_ROLLED_BACK_CHECK_CONSTRAINTS_AND_LOGS');
   }
 }
 async function run(argv=process.argv.slice(2)) {
