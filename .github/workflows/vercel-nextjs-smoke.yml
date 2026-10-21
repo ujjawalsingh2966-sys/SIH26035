@@ -1,0 +1,35 @@
+name: Vercel Next.js monorepo smoke test
+
+on:
+  push:
+    branches:
+      - fix/vercel-next-workspace-20261021
+  pull_request:
+    paths:
+      - frontend/**
+      - backend/**
+      - package.json
+      - package-lock.json
+      - .github/workflows/vercel-nextjs-smoke.yml
+      - vercel.json
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Clean install from npm workspace root
+        run: npm ci --no-audit --no-fund
+      - name: Production Next.js build (frontend workspace)
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_API_BASE_URL: https://w8lab-api.onrender.com
+        run: npm run build --workspace frontend
