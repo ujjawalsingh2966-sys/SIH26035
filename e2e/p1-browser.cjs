@@ -33,6 +33,16 @@ const env = { ...process.env, JWT_SECRET: key, NODE_ENV: 'development', PORT: '4
 };
 const logs = [], results = [], errors = [], assetErrors = [];
 let browser, server, front, adminPage, techPage, reviewerPage, otherPage, caseId, revokedToken;
+let baselineHashes, fatalFailure = null;
+const P4A_MODE = process.env.W8LAB_BROWSER_P4A === '1';
+function requireP4APrerequisite(stage) {
+  if (!P4A_MODE) return;
+  const latest = results[results.length - 1];
+  if (!latest || latest.status !== 'PASS') {
+    throw new Error(`P4A_PREREQUISITE_FAILED: ${stage}; downstream browser scenarios skipped`);
+  }
+}
+
 const read = name => { const file = path.join(runRoot, 'data', `${name}.json`); return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : []; };
 const projectHashes = () => Object.fromEntries(fs.readdirSync(path.join(root, 'data')).filter(name => name.endsWith('.json')).map(name => [name, crypto.createHash('sha256').update(fs.readFileSync(path.join(root, 'data', name))).digest('hex')]));
 function child(args, cwd = root, extra = {}) {
@@ -80,7 +90,7 @@ async function screenshot(page, name) {
     mask: [page.locator('input[type=password],input[type=email]'), ...Object.values(credentials).map(item => page.getByText(item.email, { exact: true }))] });
 }
 async function main() {
-  const before = projectHashes();
+  const before = projectHashes(); baselineHashes = before;
   for (const url of [frontend, backend]) { let occupied = false; try { await fetch(url); occupied = true; } catch {} if (occupied) throw new Error('Isolated P1 port occupied; refusing to stop its owner.'); }
   expect(await finish(child(['e2e/p0-isolated-data.cjs']))).toBe(0);
   const bootstrapEnv = { W8LAB_BOOTSTRAP_NAME: credentials.administrator.name, W8LAB_BOOTSTRAP_EMAIL: credentials.administrator.email, W8LAB_BOOTSTRAP_PASSWORD: credentials.administrator.password };
@@ -90,6 +100,7 @@ async function main() {
     expect(await finish(child(['dist/cli/staffBootstrap.js'], path.join(root, 'backend'), bootstrapEnv))).toBe(1);
     expect(JSON.stringify(read('staffAccounts'))).toBe(accounts);
   });
+  requireP4APrerequisite('Offline Administrator bootstrap');
   await startBackend();
   front = child([path.join(root, 'node_modules/next/dist/bin/next'), 'start', '--hostname', '127.0.0.1', '--port', '3016'], path.join(root, 'frontend'));
   await ready(`${frontend}/login`);
@@ -111,6 +122,7 @@ async function main() {
     expect((await api(adminPage, '/auth/me')).body.data.role).toBe('Administrator');
     await adminPage.getByRole('link', { name: 'Staff accounts', exact: true }).click(); await adminPage.waitForURL('**/staff');
   });
+  requireP4APrerequisite('Administrator login and role verification');
   await scenario('Actual staff form provisions explicit roles with unique passwords and rapid-submit protection', async () => {
     for (const role of ['technician', 'reviewer', 'otherTechnician', 'misleading']) {
       const account = credentials[role];
@@ -128,6 +140,7 @@ async function main() {
     expect(read('staffAccounts').find(item => item.email === credentials.technician.email).id).toBe('dev-user-01');
     await screenshot(adminPage, 'staff-provisioning-desktop');
   });
+  requireP4APrerequisite('Staff provisioning through the real Administrator UI');
   await scenario('Existing full laboratory browser runner remains green with real persisted accounts', async () => {
     expect(await finish(child(['e2e/laboratory-browser.cjs']))).toBe(0);
   });
@@ -265,9 +278,30 @@ async function main() {
     expect(assetErrors).toEqual([]); expect(errors).toEqual([]);
   });
   await scenario('Original project records and existing uncommitted data remain unchanged', async () => { expect(projectHashes()).toEqual(before); });
-  fs.writeFileSync(path.join(runRoot, 'results.json'), JSON.stringify({ browser: browser.version(), frontend, backend, results, errors, assetErrors, originalDataPreserved: true }, null, 2));
-  fs.writeFileSync(path.join(runRoot, 'redacted-services.log'), logs.join(''));
-  console.log(`RESULTS ${runRoot}`); console.log(`TOTAL ${JSON.stringify(results.reduce((sum, item) => ({ ...sum, [item.status]: (sum[item.status] || 0) + 1 }), {}))}`);
   if (results.some(item => item.status === 'FAIL')) process.exitCode = 1;
 }
-main().catch(error => { console.error(scrub(error.stack)); process.exitCode = 1; }).finally(async () => { await browser?.close(); await stop(front); await stop(server); });
+main().catch(error => {
+  // A provisioning failure is a prerequisite failure, not 20 unrelated P4A failures.
+  fatalFailure = scrub(error.message);
+  console.error(scrub(error.stack));
+  process.exitCode = 1;
+}).finally(async () => {
+  const browserVersion = browser?.version() || null;
+  try { await browser?.close(); await stop(front); await stop(server); }
+  finally {
+    let originalDataPreserved = null;
+    try {
+      if (baselineHashes !== undefined)
+        originalDataPreserved = JSON.stringify(projectHashes()) === JSON.stringify(baselineHashes);
+    } catch { originalDataPreserved = false; }
+    if (originalDataPreserved === false || results.some(item => item.status === 'FAIL')) process.exitCode = 1;
+    // Write an honest partial report on early abort as well as on successful completion.
+    fs.writeFileSync(path.join(runRoot, 'results.json'), JSON.stringify({
+      browser: browserVersion, frontend, backend, results, errors, assetErrors,
+      originalDataPreserved, aborted: fatalFailure !== null, fatalFailure
+    }, null, 2));
+    fs.writeFileSync(path.join(runRoot, 'redacted-services.log'), logs.join(''));
+    console.log(`RESULTS ${runRoot}`);
+    console.log(`TOTAL ${JSON.stringify(results.reduce((sum, item) => ({ ...sum, [item.status]: (sum[item.status] || 0) + 1 }), {}))}`);
+  }
+});
