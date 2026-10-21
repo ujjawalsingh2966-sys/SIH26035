@@ -7,8 +7,10 @@ on:
     paths:
       - backend/tools/json-migration-preflight.cjs
       - backend/tools/import-json-to-postgres.cjs
+      - backend/tools/verify-migration-readiness.cjs
       - backend/tests/jsonMigrationPreflight.test.cjs
       - backend/tests/jsonMigrationImport.test.cjs
+      - backend/tests/jsonMigrationReadiness.test.cjs
       - backend/tests/jsonMigrationPostgres.integration.cjs
       - database/migrations/**
       - .github/workflows/w8lab-migration-guard.yml
@@ -16,8 +18,10 @@ on:
     paths:
       - backend/tools/json-migration-preflight.cjs
       - backend/tools/import-json-to-postgres.cjs
+      - backend/tools/verify-migration-readiness.cjs
       - backend/tests/jsonMigrationPreflight.test.cjs
       - backend/tests/jsonMigrationImport.test.cjs
+      - backend/tests/jsonMigrationReadiness.test.cjs
       - backend/tests/jsonMigrationPostgres.integration.cjs
       - database/migrations/**
       - .github/workflows/w8lab-migration-guard.yml
@@ -48,7 +52,7 @@ jobs:
           node-version: '22'
           cache: npm
       - name: Run isolated JSON importer regression tests
-        run: node --test backend/tests/jsonMigrationPreflight.test.cjs backend/tests/jsonMigrationImport.test.cjs
+        run: node --test backend/tests/jsonMigrationPreflight.test.cjs backend/tests/jsonMigrationImport.test.cjs backend/tests/jsonMigrationReadiness.test.cjs
       - name: Install locked dependencies without install scripts
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Build backend mappings
