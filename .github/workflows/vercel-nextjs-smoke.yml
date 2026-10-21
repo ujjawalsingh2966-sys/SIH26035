@@ -33,3 +33,6 @@ jobs:
           NEXT_TELEMETRY_DISABLED: '1'
           NEXT_PUBLIC_API_BASE_URL: https://w8lab-api.onrender.com
         run: npm run build --workspace frontend
+      - name: Check npm workspace install from frontend directory
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
