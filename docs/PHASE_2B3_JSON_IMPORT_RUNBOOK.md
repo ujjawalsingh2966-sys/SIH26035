@@ -1,6 +1,6 @@
 # W8LAB Phase 2B.3 — Offline JSON preflight and PostgreSQL import runbook
 
-**Status (20 October 2026):** Supabase schema migration `20261020115959_w8lab_phase_2b3_private_repository_schema` has already been applied. The connected database was inspected: 12 private tables with forced RLS, zero application rows. These scripts are migration tools, **not evidence of actual user-data import**. `PERSISTENCE_ADAPTER=json` remains active.
+**Status (21 October 2026):** Supabase schema migration `20261020115959_w8lab_phase_2b3_private_repository_schema` has already been applied. The connected database was inspected: 12 private tables with forced RLS, zero application rows. These scripts are migration tools, **not evidence of actual user-data import**. `PERSISTENCE_ADAPTER=json` remains active.
 
 ## Scope
 
@@ -32,7 +32,7 @@ The tool creates a private directory, copies each existing JSON source file with
 
 ## Step 3 — Configure dedicated database credentials privately
 
-Supabase already has the private `w8lab` schema and an intentionally non-login `w8lab_runtime` role. A database administrator must privately provision a dedicated **non-owner LOGIN role** with membership of `w8lab_runtime`, without SUPERUSER/BYPASSRLS, with a unique password in private secret management. Do not use the admin `postgres` login for import. Verify TLS, grants, transaction pooler and RLS with this login. Keep `w8lab` out of Supabase exposed Data API schemas, and retain Express RBAC.
+Supabase already has the private `w8lab` schema and an intentionally non-login `w8lab_runtime` role. A dedicated non-owner `w8lab_app` LOGIN role with membership of `w8lab_runtime` has now been provisioned privately, verified without SUPERUSER/BYPASSRLS, and connected successfully through the Supabase session pooler. The user also confirmed a successful Node.js `db:health` run using a temporary, private connection URL. No secrets are stored in this PR. Do not use the admin `postgres` login for import. Verify TLS, grants, transaction pooler and RLS with this login. Keep `w8lab` out of Supabase exposed Data API schemas, and retain Express RBAC.
 
 Configure `DATABASE_URL` **server-side only** in a private backend environment, using the actual Supabase transaction-pooler URL and correctly encoded credentials. Never set `NEXT_PUBLIC_DATABASE_URL` or disclose database passwords.
 
@@ -48,7 +48,7 @@ The existing `db:health` is a read-only `SELECT 1` probe; successful health does
 
 ## Step 4 — Explicit import from the frozen, verified backup
 
-**Not executed in this session; local/private source data and production login credentials are not available.** Only after reviewing source and target backups, all legacy orphans, missing collections, private role setup, recovery procedures and a maintenance window:
+**Not executed: the private backup and production login password exist only on the user's local machine.** Only after reviewing source and target backups, all legacy orphans, missing collections, private role setup, recovery procedures and a maintenance window:
 
 ```powershell
 node backend/tools/import-json-to-postgres.cjs --backup-dir 'D:\private\W8LAB-backup-20261020' --apply
@@ -72,4 +72,4 @@ The importer never auto-runs on application startup. It checks the backup manife
 node --test backend/tests/jsonMigrationPreflight.test.cjs backend/tests/jsonMigrationImport.test.cjs
 ```
 
-Authoring environment: **13 synthetic/fake-driver tests PASS, 0 FAIL**; tested source preflight, checksum-protected backups, bad input/duplicate/orphan/identity rejection, unsafe runtime roles, nonempty-target rollback and a synthetic import with pre-COMMIT reconciliation. These are **not** actual PostgreSQL import or browser verification. The connected Supabase management session could not `SET ROLE w8lab_runtime` (permission denied); runtime LOGIN provisioning and real-credential tests therefore remain pending.
+User's local machine: **13 original synthetic/fake-driver tests PASS, 0 FAIL**. On 21 October, **five further regression tests were committed** for uncertain COMMIT acknowledgements, successful rollback, failed rollback, identity reservation order and deferred-FK enforcement. The committed 18-test suite has **not yet been independently executed in this session**; a dedicated GitHub Actions workflow at `.github/workflows/w8lab-migration-guard.yml` is intended to run it on branch pushes/PRs. These are **not** actual PostgreSQL import or browser verification. The user separately verified restricted `w8lab_app` login, `SET ROLE w8lab_runtime`, an empty `w8lab.business_accounts` table, and a passing Node database health probe. Connected Supabase metadata checks verified 8/8 FKs `DEFERRABLE INITIALLY DEFERRED`, forced RLS on 12/12 tables, runtime table grants and no security advisor findings. This is not a substitute for a synthetic PostgreSQL end-to-end import before live data.
