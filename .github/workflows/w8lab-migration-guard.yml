@@ -1,0 +1,34 @@
+name: W8LAB JSON migration safety tests
+
+on:
+  push:
+    branches:
+      - feat/postgres-phase-2b3-schema-20261020
+    paths:
+      - backend/tools/json-migration-preflight.cjs
+      - backend/tools/import-json-to-postgres.cjs
+      - backend/tests/jsonMigrationPreflight.test.cjs
+      - backend/tests/jsonMigrationImport.test.cjs
+      - .github/workflows/w8lab-migration-guard.yml
+  pull_request:
+    paths:
+      - backend/tools/json-migration-preflight.cjs
+      - backend/tools/import-json-to-postgres.cjs
+      - backend/tests/jsonMigrationPreflight.test.cjs
+      - backend/tests/jsonMigrationImport.test.cjs
+      - .github/workflows/w8lab-migration-guard.yml
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-migration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run isolated JSON importer regression tests
+        run: node --test backend/tests/jsonMigrationPreflight.test.cjs backend/tests/jsonMigrationImport.test.cjs
