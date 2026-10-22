@@ -92,9 +92,19 @@ export class JsonStore<T extends { id: string }> {
     this.collection = new Map(items.map(item => [item.id, structuredClone(item)]));
   }
 
-  deleteItem(id: string): void {
+  deleteItem(id: string): boolean {
+    const previous = this.collection.get(id);
+    if (!previous) return false;
     this.collection.delete(id);
-    this.save();
+    try {
+      // Deletions must be atomic, even for a non-strict laboratory collection.
+      this.save(true);
+    } catch {
+      // Keep the record visible if the persisted file could not be replaced.
+      this.collection.set(id, previous);
+      throw new Error('Cannot persist data store');
+    }
+    return true;
   }
 
   clear(): void {

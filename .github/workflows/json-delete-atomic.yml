@@ -1,0 +1,32 @@
+name: W8LAB atomic JSON deletion regression
+
+on:
+  push:
+    branches:
+      - fix/jsonstore-delete-rollback-20261022
+  pull_request:
+    paths:
+      - backend/src/repositories/JsonStore.ts
+      - backend/tests/jsonDeleteAtomic.test.ts
+      - backend/tests/p4aWindowsPersistencePrerequisite.test.ts
+      - .github/workflows/json-delete-atomic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  backend-json-rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked workspace dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Compile backend
+        run: npm run build --workspace backend
+      - name: Test deleted-record recovery and P4A failure handling
+        run: npm test --workspace backend -- --runInBand --silent --runTestsByPath tests/jsonDeleteAtomic.test.ts tests/p4aWindowsPersistencePrerequisite.test.ts tests/persistenceContract.test.ts
