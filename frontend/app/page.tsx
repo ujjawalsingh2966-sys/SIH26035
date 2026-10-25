@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ShieldCheck, FlaskConical, ClipboardCheck, Scale, Copy, ArrowRight, Loader2 } from 'lucide-react'
 import { API_BASE_URL } from './lib/api'
 
@@ -19,6 +19,16 @@ export default function Home() {
   const [workspace, setWorkspace] = useState<DemoWorkspace | null>(null)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('w8lab_evaluator_demo')
+      if (saved) {
+        const data = JSON.parse(saved) as DemoWorkspace
+        if (Date.parse(data.expiresAt) > Date.now() && Array.isArray(data.credentials) && data.credentials.length === 3) setWorkspace(data)
+        else sessionStorage.removeItem('w8lab_evaluator_demo')
+      }
+    } catch { sessionStorage.removeItem('w8lab_evaluator_demo') }
+  }, [])
   async function generate() {
     setBusy('generate')
     setError('')
