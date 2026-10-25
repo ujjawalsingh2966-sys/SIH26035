@@ -148,7 +148,7 @@ function seedWorkspace(technicianId: string, reviewerId: string) {
     if (scenario !== "READY") {
       WorkflowService.startReview(testCase.id, reviewerId, "Reviewer");
       if (scenario === "CORRECTION") {
-        WorkflowService.returnForCorrection(testCase.id, reviewerId, "Demo feedback: verify the recorded observation.");
+        WorkflowService.returnForCorrection(testCase.id, reviewerId, "Reviewer", "Demo feedback: verify the recorded observation.");
       } else {
         WorkflowService.approve(testCase.id, reviewerId, "Reviewer");
       }
