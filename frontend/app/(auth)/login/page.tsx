@@ -39,7 +39,7 @@ export default function LoginPage() {
         const data = await post<{ token: string; user?: { role?: string } }>('/auth/login', { email, password })
         if (!data?.token) throw new Error('Sign in failed. Please try again.')
         localStorage.setItem('nawi_token', data.token)
-        router.replace(data.user?.role === 'Business' ? '/applications' : '/dashboard')
+        router.replace(['Technician', 'Reviewer', 'Administrator'].includes(data.user?.role ?? '') ? '/dashboard' : '/applications')
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to sign in. Please try again.')
