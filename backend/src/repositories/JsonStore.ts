@@ -1,85 +1,68 @@
 import fs from "fs";
 import path from "path";
+import { currentDemoWorkspace } from "../services/demoScope";
 
-const DATA_DIR =
-  process.env.DATA_DIR || path.resolve(__dirname, "../../../data");
-
+const DATA_DIR = process.env.DATA_DIR || path.resolve(__dirname, "../../../data");
 export class JsonStore<T extends { id: string }> {
-  private collection: Map<string, T> = new Map();
-  private filePath: string;
+  private collections = new Map<string, Map<string, T>>();
+  constructor(private filename: string) {}
 
-  constructor(filename: string) {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    this.filePath = path.join(DATA_DIR, filename);
-    this.load();
+  private location(): string {
+    const workspace = currentDemoWorkspace();
+    const folder = workspace ? path.join(DATA_DIR, "evaluator-demo", workspace) : DATA_DIR;
+    fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
+    return path.join(folder, this.filename);
   }
-
-  private load() {
-    if (fs.existsSync(this.filePath)) {
+  private collection(): Map<string, T> {
+    const location = this.location();
+    const cached = this.collections.get(location);
+    if (cached) return cached;
+    const map = new Map<string, T>();
+    if (fs.existsSync(location)) {
       try {
-        const raw = fs.readFileSync(this.filePath, "utf-8");
-        const data = JSON.parse(raw);
-        for (const item of data) {
-          this.collection.set(item.id, item);
-        }
-      } catch (err) {
-        throw new Error(`Cannot read data store ${this.filePath}`);
-      }
+        const parsed: T[] = JSON.parse(fs.readFileSync(location, "utf8"));
+        if (!Array.isArray(parsed)) throw new Error("Expected array");
+        for (const item of parsed) map.set(item.id, item);
+      } catch { throw new Error(`Cannot read data store ${location}`); }
     }
+    this.collections.set(location, map);
+    return map;
   }
-
-  private save() {
+  private save(): void {
+    const location = this.location();
+    const temp = `${location}.${process.pid}.tmp`;
     try {
-      const data = Array.from(this.collection.values());
-      const temporaryPath = `${this.filePath}.tmp`;
-      fs.writeFileSync(temporaryPath, JSON.stringify(data, null, 2), {
-        encoding: "utf-8",
-        mode: 0o600,
-      });
-      fs.renameSync(temporaryPath, this.filePath);
-    } catch (err) {
-      throw new Error(`Cannot persist data store ${this.filePath}`);
+      fs.writeFileSync(temp, JSON.stringify(Array.from(this.collection().values()), null, 2), { mode: 0o600 });
+      fs.renameSync(temp, location);
+    } catch {
+      try { fs.rmSync(temp, { force: true }); } catch {}
+      throw new Error(`Cannot persist data store ${location}`);
     }
   }
-
-  findAll(): T[] {
-    return structuredClone(Array.from(this.collection.values()));
-  }
-
-  findById(id: string): T | undefined {
-    return structuredClone(this.collection.get(id));
-  }
-
+  findAll(): T[] { return structuredClone(Array.from(this.collection().values())); }
+  findById(id: string): T | undefined { return structuredClone(this.collection().get(id)); }
   saveItem(item: T): T {
-    const previous = this.collection.get(item.id);
-    this.collection.set(item.id, structuredClone(item));
-    try {
-      this.save();
-    } catch (err) {
-      if (previous) this.collection.set(item.id, previous);
-      else this.collection.delete(item.id);
-      throw err;
+    const collection = this.collection();
+    const prior = collection.get(item.id);
+    collection.set(item.id, structuredClone(item));
+    try { this.save(); } catch (error) {
+      if (prior) collection.set(item.id, prior); else collection.delete(item.id);
+      throw error;
     }
     return item;
   }
-
   deleteItem(id: string): boolean {
-    const previous = this.collection.get(id);
-    if (!previous) return false;
-    this.collection.delete(id);
-    try {
-      this.save();
-    } catch (err) {
-      this.collection.set(id, previous);
-      throw err;
-    }
+    const collection = this.collection();
+    const prior = collection.get(id);
+    if (!prior) return false;
+    collection.delete(id);
+    try { this.save(); } catch (error) { collection.set(id, prior); throw error; }
     return true;
   }
-
   clear(): void {
-    this.collection.clear();
-    this.save();
+    const collection = this.collection();
+    const previous = new Map(collection);
+    collection.clear();
+    try { this.save(); } catch (error) { this.collections.set(this.location(), previous); throw error; }
   }
 }
