@@ -110,6 +110,7 @@ export default function DashboardLayout({
               <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
             </div>
           </div>
+          {user.email.endsWith('@demo.w8lab.test') && <Link href="/" className="flex items-center gap-3 px-3 py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-300 hover:underline">Switch Demo Role</Link>}
           <button onClick={logout} className="flex items-center gap-3 px-3 py-2 text-sm text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-colors rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20">
             <LogOut className="w-4 h-4" />
             Sign Out
@@ -134,6 +135,7 @@ export default function DashboardLayout({
               <Activity className="w-3.5 h-3.5 text-emerald-600" />
               <span className="text-xs font-medium text-slate-600 dark:text-slate-300">System Operational</span>
             </div>
+            {user.email.endsWith('@demo.w8lab.test') && <Link href="/" className="text-sm font-semibold text-indigo-600 dark:text-indigo-300 hover:underline">Switch Demo Role</Link>}
             <button onClick={logout} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign Out</span>
@@ -144,6 +146,7 @@ export default function DashboardLayout({
         <nav aria-label="Mobile navigation" className="md:hidden flex gap-3 overflow-x-auto p-3 border-b">
           {navItems.map(item => <Link key={item.href} href={item.href} aria-current={pathname === item.href ? 'page' : undefined} className="whitespace-nowrap text-sm text-indigo-700">{item.name}</Link>)}
         </nav>
+        {user.email.endsWith('@demo.w8lab.test') && <div role='status' className='px-4 py-2 text-xs bg-amber-100 dark:bg-amber-900 text-amber-900 dark:text-amber-100'>SIH Evaluator Demo — sample data only, not an official report environment</div>}
         {/* Main Content */}
         <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900">
           <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
