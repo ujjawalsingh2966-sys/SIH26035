@@ -437,23 +437,23 @@ export default function DashboardPage() {
       {/* Recent Activity / Status */}
       <div className="card">
         <div className="p-5 border-b border-slate-100 dark:border-slate-700">
-          <h3 className="font-semibold text-slate-900 dark:text-white">Platform Status</h3>
+          <h3 className="font-semibold text-slate-900 dark:text-white">Workspace Information</h3>
         </div>
         <div className="p-5">
           <div className="flex flex-col md:flex-row gap-6 items-center">
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
-              <span className="text-sm text-slate-700 dark:text-slate-300">System Operational</span>
+              <div className="w-3 h-3 bg-slate-400 rounded-full" />
+              <span className="text-sm text-slate-700 dark:text-slate-300">Metrics reflect the last successful data load</span>
             </div>
             <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800 md:hidden" />
             <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
-                <span>Last sync: Just now</span>
+                <span>Refresh the page for current metrics</span>
               </div>
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4" />
-                <span>OIML R76 v2024</span>
+                <span>OIML R76-guided pilot</span>
               </div>
             </div>
           </div>
