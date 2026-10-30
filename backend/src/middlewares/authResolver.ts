@@ -25,7 +25,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
     };
     const workspaceId = decoded.demoWorkspaceId;
     if (workspaceId && (!evaluatorDemoEnabled() || !workspaceMetadata(workspaceId))) {
-      return res.status(401).json({ success: false, error: "Demo session expired or unavailable" });
+      return res.status(401).json({ success: false, code: "DEMO_EXPIRED", error: "Demo session expired or unavailable" });
     }
     // A production request must not inherit another request's demo scope.
     const resolve = () => {
@@ -37,6 +37,12 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
       // Block regular tokens from impersonating demo-scoped accounts.
       if (!workspaceId && account.email.endsWith("@demo.w8lab.test")) {
         return res.status(401).json({ success: false, error: "Invalid session scope" });
+      }
+      if (workspaceId) {
+        res.setHeader("Cache-Control", "no-store");
+        res.setHeader("X-Demo-Expires-At", workspaceMetadata(workspaceId)!.expiresAt);
+        res.setHeader("X-Demo-Server-Now", new Date().toISOString());
+        res.setHeader("Access-Control-Expose-Headers", "X-Demo-Expires-At, X-Demo-Server-Now");
       }
       req.user = { id: account.id, email: account.email, role: account.role, ...(workspaceId ? { demoWorkspaceId: workspaceId } : {}) };
       next();
