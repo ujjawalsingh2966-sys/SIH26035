@@ -1,159 +1,149 @@
 "use client"
-import Link from 'next/link'
-import { useEffect, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
-import { api, User as AccountUser } from '../lib/api'
+
+import Link from "next/link"
+import { useEffect, useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import {
+  ArrowUpRight,
+  ClipboardList,
+  FileText,
   LayoutDashboard,
+  LogOut,
   Menu,
   Scale,
-  ClipboardList,
-  User,
-  Settings,
-  LogOut,
-  Activity,
-  FileText,
-  Clock,
-  CheckCircle2
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
+  UserRound,
+  X
+} from "lucide-react"
+import { api, User as AccountUser } from "../lib/api"
+import { AccountContext } from "../lib/account-context"
 
-import { AccountContext } from '../lib/account-context'
-
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const [user, setUser] = useState<AccountUser | null>(null)
-  const [error, setError] = useState('')
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
+  const [user, setUser] = useState<AccountUser | null>(null)
+  const [error, setError] = useState("")
+  const [mobileOpen, setMobileOpen] = useState(false)
+
   useEffect(() => {
-    const expired = () => router.replace('/login')
-    window.addEventListener('session-expired', expired)
-    if (!localStorage.getItem('nawi_token')) expired()
-    else api<AccountUser>('/auth/me').then(setUser).catch(e => setError(e.message))
-    return () => window.removeEventListener('session-expired', expired)
+    const expired = () => router.replace("/login")
+    window.addEventListener("session-expired", expired)
+    if (!localStorage.getItem("nawi_token")) {
+      expired()
+    } else {
+      api<AccountUser>("/auth/me")
+        .then(setUser)
+        .catch((cause: unknown) => {
+          setError(cause instanceof Error ? cause.message : "Unable to load your account.")
+        })
+    }
+    return () => window.removeEventListener("session-expired", expired)
   }, [router])
-  const laboratory = !!user && ['Technician', 'Reviewer', 'Administrator'].includes(user.role)
-  const allowed = !!user && (pathname === '/applications' || pathname.startsWith('/applications/') ||
-    (pathname === '/staff' ? user.role === 'Administrator' : laboratory))
+
+  const laboratory = !!user && ["Technician", "Reviewer", "Administrator"].includes(user.role)
+  const inApplications = pathname === "/applications" || pathname.startsWith("/applications/")
+  const allowed = !!user && (inApplications || (pathname === "/staff" ? user.role === "Administrator" : laboratory))
+
   useEffect(() => {
-    if (user && !allowed) router.replace('/applications')
+    if (user && !allowed) router.replace("/applications")
   }, [user, allowed, router])
+
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
   function logout() {
-    localStorage.removeItem('nawi_token')
-    router.replace('/login')
+    localStorage.removeItem("nawi_token")
+    router.replace("/login")
   }
-  if (!user || !allowed) return (
-    <main className="p-8">
-      <p role="status">{error || 'Loading your workspace…'}</p>
-      {error && <button onClick={logout} className="underline">Return to sign in</button>}
-    </main>
-  )
-  const userRole = user.role
+
+  if (!user || !allowed) {
+    return (
+      <main className="w8-gate" role="status">
+        <div className="w8-gate-mark"><Scale size={28} aria-hidden="true" /></div>
+        <h1>Opening your workspace</h1>
+        <p>{error || "Checking your account and permissions…"}</p>
+        {error && <button className="w8-text-action" onClick={logout}>Return to sign in</button>}
+      </main>
+    )
+  }
+
   const navItems = [
-    { name: 'Applications', href: '/applications', icon: FileText },
-    ...(user.role === 'Administrator' ? [{ name: 'Staff accounts', href: '/staff', icon: User }] : []),
+    { name: "Applications", href: "/applications", icon: FileText },
+    ...(user.role === "Administrator" ? [{ name: "Staff accounts", href: "/staff", icon: UserRound }] : []),
     ...(laboratory ? [
-      { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
-      { name: 'Instruments', href: '/instruments', icon: Scale },
-      { name: 'Evaluation Queue', href: '/tests', icon: ClipboardList },
-    ] : []),
+      { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
+      { name: "Instruments", href: "/instruments", icon: Scale },
+      { name: "Evaluation queue", href: "/tests", icon: ClipboardList }
+    ] : [])
   ]
+
+  const activeItem = navItems.find(item => pathname === item.href || pathname.startsWith(item.href + "/"))
+  const pageName = activeItem?.name ?? "Workspace"
 
   return (
     <AccountContext.Provider value={user}>
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-900">
-      {/* Sidebar */}
-      <div className="w-64 hidden md:flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800">
-        {/* Logo */}
-        <div className="h-16 flex items-center px-6 border-b border-slate-200 dark:border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-indigo-600 rounded-lg">
-              <Scale className="w-5 h-5 text-white" />
-            </div>
+      <div className="w8-workspace">
+        <aside className="w8-sidebar" aria-label="Workspace navigation">
+          <div className="w8-brand">
+            <div className="w8-brand-symbol" aria-hidden="true"><Scale size={25} strokeWidth={1.75} /></div>
             <div>
-              <h1 className="font-bold text-slate-900 dark:text-white leading-tight">W8Lab</h1>
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">NAWI Verification</p>
+              <strong>W8LAB<span className="w8-brand-period">.</span></strong>
+              <small>Legal metrology / NAWI</small>
             </div>
           </div>
-        </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 py-6 px-3 space-y-0.5 overflow-y-auto">
-          <div className="px-3 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Menu</div>
-          {navItems.map((item) => (
-            <Link
-              key={item.name}
-              aria-current={pathname === item.href ? 'page' : undefined}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
-                "text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200"
-              )}
-            >
-              <item.icon className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
-              {item.name}
-            </Link>
-          ))}
-        </nav>
+          <div className="w8-sidebar-label">Workspace</div>
+          <nav className="w8-desktop-nav" aria-label="Primary navigation">
+            {navItems.map(item => {
+              const active = pathname === item.href || pathname.startsWith(item.href + "/")
+              return (
+                <Link href={item.href} key={item.href} aria-current={active ? "page" : undefined} className={active ? "w8-nav-link is-active" : "w8-nav-link"}>
+                  <item.icon size={18} strokeWidth={1.7} aria-hidden="true" />
+                  <span>{item.name}</span>
+                  {active && <span className="w8-nav-marker" aria-hidden="true" />}
+                </Link>
+              )
+            })}
+          </nav>
 
-        {/* User Role & Logout */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center text-white font-medium text-sm">
-              {user.name.charAt(0)}
+          <div className="w8-sidebar-end">
+            <div className="w8-workspace-note">
+              <span className="w8-note-rule" aria-hidden="true" />
+              <span>Evidence-led instrument evaluation and verification workflows.</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-slate-900 dark:text-white truncate">{user.name} · {userRole}</p>
-              <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
+            <div className="w8-profile">
+              <div className="w8-avatar" aria-hidden="true">{user.name?.charAt(0)?.toUpperCase() || "W"}</div>
+              <div className="w8-profile-info">
+                <strong>{user.name}</strong>
+                <span>{user.role}</span>
+                <small title={user.email}>{user.email}</small>
+              </div>
             </div>
+            <button type="button" className="w8-signout" onClick={logout}><LogOut size={17} aria-hidden="true" /> Sign out <ArrowUpRight size={15} aria-hidden="true" /></button>
           </div>
-          <button onClick={logout} className="flex items-center gap-3 px-3 py-2 text-sm text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-colors rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20">
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </button>
+        </aside>
+
+        <div className="w8-app-shell">
+          <header className="w8-topbar">
+            <div className="w8-topbar-start">
+              <button type="button" className="w8-mobile-toggle" aria-label={mobileOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileOpen} aria-controls="w8-mobile-navigation" onClick={() => setMobileOpen(open => !open)}>
+                {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+              </button>
+              <div className="w8-topbar-breadcrumb"><span>W8LAB</span><span className="w8-crumb-separator">/</span><strong>{pageName}</strong></div>
+            </div>
+            <div className="w8-topbar-end"><span className="w8-role-tag">{user.role}</span><button type="button" className="w8-mobile-signout" onClick={logout} aria-label="Sign out"><LogOut size={17} /></button></div>
+          </header>
+
+          <nav id="w8-mobile-navigation" aria-label="Mobile navigation" className={mobileOpen ? "w8-mobile-nav is-open" : "w8-mobile-nav"}>
+            {navItems.map(item => {
+              const active = pathname === item.href || pathname.startsWith(item.href + "/")
+              return <Link href={item.href} onClick={() => setMobileOpen(false)} key={item.href} aria-current={active ? "page" : undefined} className={active ? "w8-mobile-link is-active" : "w8-mobile-link"}><item.icon size={17} aria-hidden="true" />{item.name}</Link>
+            })}
+          </nav>
+
+          <main className="w8-app-main"><div className="w8-app-content">{children}</div></main>
         </div>
       </div>
-
-      {/* Mobile Header */}
-      <div className="flex-1 flex flex-col md:overflow-hidden">
-        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-6">
-          <div className="flex items-center gap-4">
-            <button type="button" onClick={() => setMobileMenuOpen(open => !open)} aria-expanded={mobileMenuOpen} aria-controls="mobile-workspace-navigation" aria-label={mobileMenuOpen ? 'Close navigation' : 'Open navigation'} className="md:hidden p-2 -ml-2 text-slate-600 dark:text-slate-300">
-              <Menu className="w-6 h-6" />
-            </button>
-            <div className="hidden md:block">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Dashboard</h2>
-              <p className="text-xs text-slate-500 hidden lg:block">Legal Metrology Compliance Platform</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full">
-              <Activity className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Workspace ready</span>
-            </div>
-            <button onClick={logout} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Sign Out</span>
-            </button>
-          </div>
-        </header>
-
-        <nav id="mobile-workspace-navigation" aria-label="Mobile navigation" className={`md:hidden ${mobileMenuOpen ? 'flex' : 'hidden'} gap-3 overflow-x-auto p-3 border-b`}>
-          {navItems.map(item => <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)} aria-current={pathname === item.href ? 'page' : undefined} className="whitespace-nowrap text-sm text-indigo-700">{item.name}</Link>)}
-        </nav>
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900">
-          <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
-      </div>
-    </div>
     </AccountContext.Provider>
   )
 }
