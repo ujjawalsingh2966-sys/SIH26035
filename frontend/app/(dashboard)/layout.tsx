@@ -26,14 +26,50 @@ export default function DashboardLayout({
 }) {
   const [user, setUser] = useState<AccountUser | null>(null)
   const [error, setError] = useState('')
+  const [demoRemaining, setDemoRemaining] = useState<number | null>(null)
   const router = useRouter()
   const pathname = usePathname()
   useEffect(() => {
     const expired = () => router.replace('/login')
+    const demoExpired = () => router.replace('/')
+    window.addEventListener('demo-expired', demoExpired)
+    const demoState = sessionStorage.getItem('w8lab_evaluator_demo')
+    let timeout: ReturnType<typeof setTimeout> | undefined
+    let ticker: ReturnType<typeof setInterval> | undefined
+    if (demoState) {
+      try {
+        const metadata = JSON.parse(demoState)
+        const expiry = Date.parse(metadata.expiresAt)
+        if (Number.isFinite(expiry)) {
+          const evaluate = () => {
+            const remaining = Math.max(0, Math.ceil((expiry - Date.now()) / 1000))
+            setDemoRemaining(remaining)
+            if (remaining === 0) {
+              localStorage.removeItem('nawi_token')
+              sessionStorage.removeItem('w8lab_evaluator_demo')
+              sessionStorage.setItem('w8lab_demo_expired_notice', '1')
+              router.replace('/')
+            }
+          }
+          evaluate()
+          ticker = setInterval(evaluate, 1000)
+        }
+      } catch { sessionStorage.removeItem('w8lab_evaluator_demo') }
+    }
+    const focusCheck = () => {
+      if (demoState) api('/auth/me').catch(() => {})
+    }
+    window.addEventListener('focus', focusCheck)
     window.addEventListener('session-expired', expired)
     if (!localStorage.getItem('nawi_token')) expired()
     else api<AccountUser>('/auth/me').then(setUser).catch(e => setError(e.message))
-    return () => window.removeEventListener('session-expired', expired)
+    return () => {
+      window.removeEventListener('session-expired', expired)
+      window.removeEventListener('demo-expired', demoExpired)
+      window.removeEventListener('focus', focusCheck)
+      if (ticker) clearInterval(ticker)
+      if (timeout) clearTimeout(timeout)
+    }
   }, [router])
   const laboratory = !!user && ['Technician', 'Reviewer', 'Administrator'].includes(user.role)
   const allowed = !!user && (pathname === '/applications' || pathname.startsWith('/applications/') ||
@@ -146,6 +182,7 @@ export default function DashboardLayout({
         <nav aria-label="Mobile navigation" className="md:hidden flex gap-3 overflow-x-auto p-3 border-b">
           {navItems.map(item => <Link key={item.href} href={item.href} aria-current={pathname === item.href ? 'page' : undefined} className="whitespace-nowrap text-sm text-indigo-700">{item.name}</Link>)}
         </nav>
+        {user.email.endsWith('@demo.w8lab.test') && demoRemaining !== null && <div role="timer" className="px-4 py-2 text-xs bg-indigo-100 dark:bg-indigo-950 text-indigo-900 dark:text-indigo-100">Demo expires in {String(Math.floor(demoRemaining / 3600)).padStart(2, '0')}:{String(Math.floor(demoRemaining % 3600 / 60)).padStart(2, '0')}:{String(demoRemaining % 60).padStart(2, '0')}</div>}
         {user.email.endsWith('@demo.w8lab.test') && <div role='status' className='px-4 py-2 text-xs bg-amber-100 dark:bg-amber-900 text-amber-900 dark:text-amber-100'>SIH Evaluator Demo — sample data only, not an official report environment</div>}
         {/* Main Content */}
         <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900">
