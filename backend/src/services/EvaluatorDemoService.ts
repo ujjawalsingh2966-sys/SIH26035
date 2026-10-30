@@ -2,16 +2,14 @@ import fs from "fs";
 import path from "path";
 import { randomBytes, randomUUID } from "crypto";
 import { createAccount, Role } from "./AccountService";
-import { withinDemoWorkspace } from "./demoScope";
+import { withinDemoWorkspace, demoRoot, demoWorkspaceFolder, readDemoMetadata } from "./demoScope";
+import { JsonStore } from "../repositories/JsonStore";
 import { instrumentStore, manufacturerStore, observationStore, testCaseStore } from "../repositories";
 import { Instrument, TestCase } from "../types/domain";
 import { EvaluationService } from "./EvaluationService";
 import { WorkflowService } from "./WorkflowService";
 
-const root = path.join(
-  process.env.DATA_DIR || path.resolve(__dirname, "../../../data"),
-  "evaluator-demo",
-);
+const root = demoRoot;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const lifetimeMs = 24 * 60 * 60 * 1000;
 const maximumActiveWorkspaces = 100;
@@ -34,19 +32,11 @@ export function evaluatorDemoEnabled(): boolean {
 }
 
 function metadataPath(id: string) {
-  if (!uuidPattern.test(id)) throw new Error("Invalid evaluator workspace");
-  return path.join(root, id, "workspace.json");
+  return path.join(demoWorkspaceFolder(id), "workspace.json");
 }
-
 export function workspaceMetadata(id: string): WorkspaceMetadata | null {
-  if (!uuidPattern.test(id)) return null;
-  try {
-    const metadata = JSON.parse(fs.readFileSync(metadataPath(id), "utf8")) as WorkspaceMetadata;
-    if (metadata.id !== id || !Number.isFinite(Date.parse(metadata.expiresAt))) return null;
-    return Date.parse(metadata.expiresAt) > Date.now() ? metadata : null;
-  } catch {
-    return null;
-  }
+  const m = readDemoMetadata(id);
+  return m && Date.now() < Date.parse(m.expiresAt) ? m : null;
 }
 
 export function workspaceFromDemoEmail(email: string): string | null {
@@ -54,15 +44,22 @@ export function workspaceFromDemoEmail(email: string): string | null {
   return match && uuidPattern.test(match[2]) ? match[2] : null;
 }
 
-function removeExpired() {
-  if (!fs.existsSync(root)) return;
+export function cleanupExpiredEvaluatorWorkspaces(): number {
+  if (!fs.existsSync(root)) return 0;
+  let removed = 0;
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
     if (!entry.isDirectory() || !uuidPattern.test(entry.name)) continue;
     if (!workspaceMetadata(entry.name)) {
-      // Expired/corrupt metadata is not usable for authentication.
-      fs.rmSync(path.join(root, entry.name), { recursive: true, force: true });
+      try {
+        fs.rmSync(demoWorkspaceFolder(entry.name), { recursive: true, force: true });
+        JsonStore.evictDemoWorkspace(entry.name);
+        removed++;
+      } catch (error) {
+        console.error("Failed to delete expired demo workspace", entry.name, error);
+      }
     }
   }
+  return removed;
 }
 
 function seedWorkspace(technicianId: string, reviewerId: string) {
@@ -163,7 +160,7 @@ export function provisionEvaluatorWorkspace(): {
 } {
   if (!evaluatorDemoEnabled()) throw new Error("Evaluator demo is not enabled");
   fs.mkdirSync(root, { recursive: true, mode: 0o700 });
-  removeExpired();
+  cleanupExpiredEvaluatorWorkspaces();
   const active = fs.readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && uuidPattern.test(entry.name) && !!workspaceMetadata(entry.name))
     .length;
@@ -172,11 +169,12 @@ export function provisionEvaluatorWorkspace(): {
   }
 
   const id = randomUUID();
-  const expiresAt = new Date(Date.now() + lifetimeMs).toISOString();
+  const createdAt = new Date();
+  const expiresAt = new Date(createdAt.getTime() + lifetimeMs).toISOString();
   const directory = path.join(root, id);
   fs.mkdirSync(directory, { recursive: false, mode: 0o700 });
   fs.writeFileSync(metadataPath(id), JSON.stringify({
-    id, createdAt: new Date().toISOString(), expiresAt,
+    id, createdAt: createdAt.toISOString(), expiresAt,
   } satisfies WorkspaceMetadata), { flag: "wx", mode: 0o600 });
 
   try {
@@ -198,6 +196,7 @@ export function provisionEvaluatorWorkspace(): {
     return { workspaceId: id, expiresAt, credentials };
   } catch (error) {
     fs.rmSync(directory, { recursive: true, force: true });
+    JsonStore.evictDemoWorkspace(id);
     throw error;
   }
 }
