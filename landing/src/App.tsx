@@ -64,7 +64,7 @@ export default function App() {
 
   useEffect(() => {
     const els = document.querySelectorAll<HTMLElement>('[data-reveal]')
-    if (!('IntersectionObserver' in window)) return
+    if (!('IntersectionObserver' in window)) { els.forEach(el => el.classList.add('is-visible')); return }
     const observer = new IntersectionObserver(entries => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
