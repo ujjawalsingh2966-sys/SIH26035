@@ -5,12 +5,7 @@ import {
   Scale,
   PlusCircle,
   Search,
-  MoreHorizontal,
-  Edit,
-  Trash2,
   Filter,
-  Download,
-  Upload,
   CheckCircle2,
   AlertCircle
 } from 'lucide-react'
@@ -238,27 +233,11 @@ export default function InstrumentsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Link
-                          href={`/test-cases?instrumentId=${instrument.id}`}
-                          className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
-                          title="View Test Cases"
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
+                      <div className="flex items-center justify-end">
+                        <Link href="/tests" className="w8-row-action" title="Open evaluation queue">
+                          <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                          Evaluation queue
                         </Link>
-                        <Link
-                          href="/instruments"
-                          className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Link>
-                        <button className="p-1.5 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                        <button className="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -272,16 +251,7 @@ export default function InstrumentsPage() {
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Showing {filteredInstruments.length} instrument{filteredInstruments.length !== 1 ? 's' : ''}
             </p>
-            <div className="flex items-center gap-2">
-              <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors">
-                <Download className="w-3.5 h-3.5" />
-                Export
-              </button>
-              <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors">
-                <Upload className="w-3.5 h-3.5" />
-                Import
-              </button>
-            </div>
+            <p className="text-xs text-slate-500">Import and export are not available in this pilot.</p>
           </div>
         )}
       </div>
