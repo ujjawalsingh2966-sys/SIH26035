@@ -79,11 +79,22 @@ export default function NewInstrumentPage() {
     if (![form.name, form.model, form.serialNumber].every(value => value.trim().length > 0)) return "Enter the instrument name, model and serial number."
     const decimal = /^(?:\d+)(?:\.\d+)?$/
     if (![form.maxCapacity, form.minCapacity, form.e, form.d].every(value => decimal.test(value))) return "Enter non-negative decimal values (in grams) for Max, Min, e and d."
-    const max = Number(form.maxCapacity)
-    const min = Number(form.minCapacity)
-    const e = Number(form.e)
-    const d = Number(form.d)
-    if (![max, min, e, d].every(Number.isFinite) || !(max > min && min >= 0 && e > 0 && d > 0 && d <= e && e <= max)) return "Require 0 ≤ Min < Max and 0 < d ≤ e ≤ Max."
+    // Compare decimal strings exactly: measurement validation must not round through JS Number.
+    const compareDecimal = (left: string, right: string): number => {
+      const [lWhole, lFraction = ""] = left.split(".")
+      const [rWhole, rFraction = ""] = right.split(".")
+      const places = Math.max(lFraction.length, rFraction.length)
+      const l = BigInt(lWhole + lFraction.padEnd(places, "0"))
+      const r = BigInt(rWhole + rFraction.padEnd(places, "0"))
+      return l > r ? 1 : l < r ? -1 : 0
+    }
+    const zero = "0"
+    if (!(compareDecimal(form.maxCapacity, form.minCapacity) > 0 &&
+      compareDecimal(form.minCapacity, zero) >= 0 &&
+      compareDecimal(form.e, zero) > 0 &&
+      compareDecimal(form.d, zero) > 0 &&
+      compareDecimal(form.d, form.e) <= 0 &&
+      compareDecimal(form.e, form.maxCapacity) <= 0)) return "Require 0 ≤ Min < Max and 0 < d ≤ e ≤ Max."
     return null
   }
 
