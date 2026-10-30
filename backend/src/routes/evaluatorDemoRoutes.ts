@@ -40,16 +40,20 @@ evaluatorDemoRoutes.post("/login",
   (req, res) => {
     const email = req.body.email.trim().toLowerCase();
     const id = workspaceFromDemoEmail(email);
-    if (!id || !workspaceMetadata(id)) return res.status(401).json({ success: false, error: "Invalid or expired demo credentials" });
+    if (!id || !workspaceMetadata(id)) return res.status(401).json({ success: false, code: "DEMO_EXPIRED", error: "Invalid or expired demo credentials" });
     return withinDemoWorkspace(id, () => {
       const account = accountStore.findAll().find((a) => a.email === email);
       if (!account || !account.active || !checkPassword(req.body.password, account.passwordHash)) {
         return res.status(401).json({ success: false, error: "Invalid or expired demo credentials" });
       }
+      const meta = workspaceMetadata(id);
+      if (!meta) return res.status(401).json({ success: false, code: "DEMO_EXPIRED", error: "Demo expired" });
+      const remainingSeconds = Math.ceil((Date.parse(meta.expiresAt) - Date.now()) / 1000);
+      if (remainingSeconds <= 0) return res.status(401).json({ success: false, code: "DEMO_EXPIRED", error: "Demo expired" });
       const token = jwt.sign({ id: account.id, email: account.email, role: account.role, demoWorkspaceId: id },
-        config.jwtSecret, { algorithm: "HS256", expiresIn: "8h" });
+        config.jwtSecret, { algorithm: "HS256", expiresIn: Math.min(remainingSeconds, 8 * 3600) });
       res.setHeader("Cache-Control", "no-store");
-      return res.json({ success: true, data: { token, user: publicAccount(account), workspaceId: id } });
+      return res.json({ success: true, data: { token, user: publicAccount(account), workspaceId: id, expiresAt: meta.expiresAt, serverNow: new Date().toISOString() } });
     });
   },
 );
