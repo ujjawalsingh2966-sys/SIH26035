@@ -70,7 +70,7 @@ export default function ApplicationsPage() {
       .includes(query.toLowerCase()),
   );
   return (
-    <div className="space-y-6">
+    <div className="w8-applications-list space-y-6">
       <div className="flex flex-wrap justify-between items-center gap-4">
         <div>
           <p className="text-teal-700 text-xs font-semibold tracking-widest mb-2">
