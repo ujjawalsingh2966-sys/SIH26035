@@ -680,3 +680,80 @@ html { scroll-behavior: smooth; }
   .w8-verify-details { grid-template-columns: 1fr; }
   .w8-verify-main { width: calc(100% - 32px); }
 }
+
+
+/* Taste Skill — consistent treatment across every operational feature.
+   Selectors are scoped; backend/status logic and API payloads remain unchanged. */
+.w8-applications-list > section,
+.w8-application-detail > section {
+  border: 1px solid #d6e0d6; border-radius: 15px;
+  background: #fffefa;
+  box-shadow: none;
+}
+.w8-applications-list > div:first-child,
+.w8-application-detail > div:first-child,
+.w8-evaluation-queue > div:first-child,
+.w8-instrument-registry > div:first-child,
+.w8-lab-workspace > div:first-child { align-items: flex-start; }
+.w8-applications-list h1,.w8-application-detail h1,
+.w8-instrument-registry h1,.w8-evaluation-queue h1,
+.w8-lab-workspace h1 { letter-spacing: -.045em; }
+.w8-applications-list > div.grid > div,
+.w8-evaluation-queue > div.grid > div,
+.w8-instrument-registry > div.grid > div {
+  border-radius: 12px; border: 1px solid #d8e2d9;
+  background: #fffefa; box-shadow: none;
+}
+.w8-applications-list > div.grid > div p:last-child,
+.w8-evaluation-queue > div.grid > div p:last-child,
+.w8-instrument-registry > div.grid > div p:last-child {
+  letter-spacing: -.05em; font-variant-numeric: tabular-nums;
+}
+.w8-applications-list :is(section, .card) h2,
+.w8-application-detail :is(section,.card) h2,
+.w8-lab-workspace .card h2 { font-size: clamp(17px,1.6vw,21px); letter-spacing: -.03em; }
+.w8-applications-list :is(input,select,textarea),
+.w8-application-detail :is(input,select,textarea),
+.w8-lab-workspace :is(input,select,textarea) {
+  min-height: 43px; color: #18372a; background: #fffefa;
+  border: 1px solid #cad8cf; border-radius: 8px; padding: 9px 12px;
+}
+.w8-applications-list :is(input,select,textarea):focus,
+.w8-application-detail :is(input,select,textarea):focus,
+.w8-lab-workspace :is(input,select,textarea):focus {
+  border-color: #187265; outline: 2px solid #d1e6dc; outline-offset: 1px;
+}
+.w8-applications-list label,.w8-application-detail label { font-size: 13px; color: #435c4f; font-weight: 640; }
+.w8-applications-list table,.w8-application-detail table,
+.w8-evaluation-queue table,.w8-instrument-registry table,.w8-lab-workspace table {
+  border-collapse: collapse; font-variant-numeric: tabular-nums;
+}
+.w8-applications-list thead,.w8-application-detail thead,
+.w8-evaluation-queue thead,.w8-instrument-registry thead,.w8-lab-workspace thead {
+  background: #f5f7f3;
+}
+.w8-applications-list thead th,.w8-application-detail thead th,
+.w8-evaluation-queue thead th,.w8-instrument-registry thead th,.w8-lab-workspace thead th {
+  color: #566c5e; text-transform: none; letter-spacing: .015em;
+}
+.w8-applications-list tbody tr:hover,.w8-application-detail tbody tr:hover,
+.w8-evaluation-queue tbody tr:hover,.w8-instrument-registry tbody tr:hover,.w8-lab-workspace tbody tr:hover { background: #f3f8f4; }
+.w8-application-detail section { overflow-wrap: anywhere; }
+.w8-application-detail button:disabled,.w8-applications-list button:disabled,
+.w8-lab-workspace button:disabled { opacity: .55; cursor: not-allowed; }
+.w8-lab-workspace .card { box-shadow: none; }
+.w8-lab-workspace .card input:disabled,.w8-lab-workspace .card textarea:disabled { background: #e9ede9; color: #6b786c; }
+.w8-lab-workspace .card button { min-height: 36px; }
+.w8-lab-workspace :is(.font-mono,table,dl) { font-variant-numeric: tabular-nums; }
+.w8-registry-error { display: flex; align-items: center; gap: 12px; }
+.w8-registry-error span { flex: 1; }
+.w8-registry-error button { color: #82282e; background: #fff5f6; border: 1px solid #eab4ba; border-radius: 7px; padding: 7px 15px; font-weight: 650; }
+.w8-row-action { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #bbd7c6; border-radius: 7px; padding: 8px 10px; color: #176757; font-size: 12px; font-weight: 650; white-space: nowrap; background: #f3f9f4; }
+.w8-row-action:hover { color: #0d5849; background: #e3f2e7; border-color: #9bc5b1; }
+@media(max-width: 680px) {
+  .w8-applications-list > section,.w8-application-detail > section { padding: 17px; }
+  .w8-application-detail table,.w8-applications-list table { min-width: 650px; }
+  .w8-applications-list section:has(table),.w8-application-detail section:has(table) { overflow-x: auto; }
+  .w8-lab-workspace .card { min-height: 0; }
+  .w8-registry-error { flex-wrap: wrap; }
+}
