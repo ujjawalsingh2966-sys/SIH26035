@@ -477,3 +477,74 @@ html { scroll-behavior: smooth; }
   html { scroll-behavior: auto; }
   .w8-workspace *, .w8-gate * { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+
+/* Taste Skill — editorial sign-in: same metrology DNA, clearer reading and feedback. */
+.w8-login { min-height: 100vh; display: flex; flex-direction: column; font-family: var(--w8-font); background: #f7f8f4; color: #172926; }
+.w8-login-brandbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 93px; padding: 18px clamp(25px, 5vw, 86px); background: #fbfcf8; border-bottom: 1px solid #e0e6df; }
+.w8-login-wordmark { display: inline-flex; align-items: center; gap: 11px; font-size: 28px; font-weight: 780; letter-spacing: -.075em; text-decoration: none; color: #16362f; }
+.w8-login-wordmark svg { color: #146459; }
+.w8-login-dot { color: #146459; }
+.w8-login-brandbar > span { color: #698078; font-size: 11px; font-weight: 700; letter-spacing: .14em; }
+.w8-login-layout { display: grid; grid-template-columns: minmax(0, 1.07fr) minmax(0, .93fr); min-height: min(760px,calc(100vh - 155px)); flex: 1; }
+.w8-login-story { display: flex; flex-direction: column; padding: clamp(34px, 5.7vw, 88px) clamp(32px, 6vw, 96px); background: #153a34; color: #eef4e9; overflow: hidden; }
+.w8-story-overline { font-size: 11px; letter-spacing: .19em; font-weight: 650; color: #a7cbbc; }
+.w8-login-story h1 { margin-top: clamp(42px, 5.6vw, 100px); font-size: clamp(38px, 4.15vw, 74px); font-weight: 570; line-height: 1.06; letter-spacing: -.063em; color: #f5f4e9; max-width: 13ch; }
+.w8-login-story h1 em { font-style: normal; color: #b0d3bf; }
+.w8-login-story > p { margin-top: 28px; max-width: 46ch; font-size: clamp(15px, 1.15vw, 18px); color: #c4d9cc; line-height: 1.7; }
+.w8-story-steps { display: grid; gap: 0; margin-top: clamp(40px, 5vw, 76px); max-width: 620px; }
+.w8-story-step { display: grid; grid-template-columns: 36px 1fr auto; gap: 13px; align-items: center; padding: 17px 0; border-top: 1px solid #456961; }
+.w8-story-step > span { color: #94bcad; font-size: 13px; font-variant-numeric: tabular-nums; }
+.w8-story-step strong { display: block; color: #ecf1e7; font-size: 15px; font-weight: 650; }
+.w8-story-step p { margin-top: 3px; color: #a9c7b8; font-size: 12px; line-height: 1.45; }
+.w8-story-step svg { color: #91bfad; }
+.w8-story-bottom { display: flex; align-items: center; gap: 17px; margin-top: auto; padding-top: 46px; color: #9cc1ae; font-size: 12px; letter-spacing: .02em; }
+.w8-story-line { width: 36px; height: 1px; background: #9cc1ae; }
+.w8-login-form-section { display: grid; place-items: center; padding: 48px clamp(25px, 5vw, 94px); }
+.w8-auth-panel { width: 100%; max-width: 475px; }
+.w8-auth-eyebrow { display: inline-flex; align-items: center; gap: 8px; color: #156359; font-size: 11px; font-weight: 700; letter-spacing: .11em; }
+.w8-auth-panel h2 { margin: 22px 0 0; color: #1a2b28; font-size: clamp(31px, 3vw, 42px); line-height: 1.15; font-weight: 680; letter-spacing: -.055em; }
+.w8-auth-description { margin: 15px 0 31px; color: #5b6c64; line-height: 1.7; font-size: 15px; }
+.w8-auth-form { display: flex; flex-direction: column; gap: 23px; }
+.w8-auth-field label { display: block; margin-bottom: 8px; font-size: 13px; color: #344c43; font-weight: 650; }
+.w8-auth-field input { width: 100%; height: 52px; padding: 0 17px; border: 1px solid #ccd9cf; border-radius: 8px; background: #fff; font-size: 15px; color: #1d342b; }
+.w8-auth-field input::placeholder { color: #7e8f86; }
+.w8-auth-field input:focus { border-color: #196b60; outline: 3px solid #d1e9de; }
+.w8-auth-field-head { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
+.w8-auth-field-head > span { margin-bottom: 8px; color: #748579; font-size: 12px; }
+.w8-password-input { position: relative; }
+.w8-password-input input { padding-right: 55px; }
+.w8-password-input button { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; height: 38px; width: 38px; border-radius: 8px; color: #526c60; }
+.w8-password-input button:hover { background: #e9f2ec; }
+.w8-auth-submit { display: flex; justify-content: center; align-items: center; gap: 12px; width: 100%; min-height: 55px; padding: 13px 16px; margin-top: 7px; background: #176b60; color: #fff; border-radius: 8px; font-size: 15px; font-weight: 650; transition: background-color .17s, transform .17s; }
+.w8-auth-submit:hover:not(:disabled) { background: #115148; }
+.w8-auth-submit:active:not(:disabled) { transform: translateY(1px); }
+.w8-auth-submit:disabled,.w8-auth-toggle:disabled { opacity: .65; cursor: not-allowed; }
+.w8-auth-spinner { animation: spin 1s linear infinite; }
+.w8-auth-toggle { display: inline-flex; align-items: center; gap: 6px; margin-top: 24px; color: #176b60; font-weight: 680; font-size: 14px; }
+.w8-auth-toggle:hover { text-decoration: underline; text-underline-offset: 4px; }
+.w8-auth-footnote { margin-top: 36px; padding-top: 22px; border-top: 1px solid #dae4d9; color: #697c72; font-size: 12px; line-height: 1.7; }
+.w8-auth-message,.w8-auth-error { padding: 12px 15px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; line-height: 1.6; }
+.w8-auth-message { color: #176450; background: #e1f2e9; border: 1px solid #aedac1; }
+.w8-auth-error { color: #912d31; background: #fceced; border: 1px solid #efbfc4; }
+.w8-login-footer { display: flex; gap: 12px; flex-wrap: wrap; justify-content: space-between; padding: 15px clamp(25px,5vw,86px); color: #748379; font-size: 12px; background: #fbfcf8; border-top: 1px solid #e0e6df; }
+@media(max-width: 900px) {
+  .w8-login-layout { grid-template-columns: minmax(0,1fr); }
+  .w8-login-story { padding: 45px 32px; }
+  .w8-login-story h1 { margin-top: 20px; max-width: 18ch; }
+  .w8-story-steps { display: none; }
+  .w8-story-bottom { padding-top: 22px; }
+  .w8-login-form-section { padding: 55px 28px; }
+}
+@media(max-width: 500px) {
+  .w8-login-brandbar { min-height: 73px; padding: 14px 22px; }
+  .w8-login-brandbar > span { font-size: 9px; text-align: right; max-width: 120px; line-height: 1.4; }
+  .w8-login-story { padding: 37px 24px; }
+  .w8-login-story h1 { font-size: 35px; }
+  .w8-login-story > p { font-size: 14px; }
+  .w8-login-form-section { padding: 45px 23px 56px; }
+  .w8-login-footer { padding: 18px 22px; }
+}
+@media(prefers-reduced-motion: reduce) {
+  .w8-login *, .w8-login *::before,.w8-login *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
