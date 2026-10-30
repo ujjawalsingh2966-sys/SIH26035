@@ -70,14 +70,14 @@ export default function ApplicationsPage() {
       .includes(query.toLowerCase()),
   );
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-slate-900 dark:text-slate-100">
       <div className="flex flex-wrap justify-between items-center gap-4">
         <div>
-          <p className="text-teal-700 text-xs font-semibold tracking-widest mb-2">
+          <p className="text-teal-700 dark:text-teal-300 text-xs font-semibold tracking-widest mb-2">
             INSTRUMENT LIFECYCLE
           </p>
-          <h1 className="text-3xl font-bold">Verification applications</h1>
-          <p className="text-slate-500 mt-2">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Verification applications</h1>
+          <p className="text-slate-600 dark:text-slate-300 mt-2">
             {user?.role === "Business"
               ? "Submit instruments and track every step of verification."
               : "Manage applications, inspections and certificate issuance."}
@@ -111,16 +111,16 @@ export default function ApplicationsPage() {
           ],
           ["Certified", items.filter((a) => a.status === "CERTIFIED").length],
         ].map(([label, count]) => (
-          <div key={label} className="bg-white border rounded-xl p-5">
-            <p className="text-sm text-slate-500">{label}</p>
-            <p className="text-3xl font-bold mt-2">{count}</p>
+          <div key={label} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5">
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{label}</p>
+            <p className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{count}</p>
           </div>
         ))}
       </div>
       {alerts.length > 0 && (
-        <section className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+        <section className="bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 rounded-xl p-5 text-amber-950 dark:text-amber-100">
           <h2 className="font-semibold">Validity reminders</h2>
-          <p className="text-sm text-amber-900">
+          <p className="text-sm text-amber-900 dark:text-amber-200">
             Certificates expired or due within 30 days. Reminders are shown
             here; email/SMS delivery is not enabled.
           </p>
@@ -137,11 +137,11 @@ export default function ApplicationsPage() {
         </section>
       )}
       {showForm && (
-        <section className="bg-white rounded-xl border p-6">
-          <h2 className="text-xl font-semibold">
+        <section className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
             New verification application
           </h2>
-          <p className="text-sm text-slate-500 mt-2">
+          <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
             Pilot scope: electronic, single-range, non-automatic weighing
             instruments, classes II–IIII. All measurements below are in grams.
           </p>
@@ -159,7 +159,7 @@ export default function ApplicationsPage() {
                   name={name}
                   required
                   maxLength={name === "address" ? 1000 : 200}
-                  className="block w-full border p-3 mt-1 rounded-lg"
+                  className="block w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-3 mt-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </label>
             ))}
@@ -168,7 +168,7 @@ export default function ApplicationsPage() {
               <select
                 name="accuracyClass"
                 defaultValue="III"
-                className="block w-full border p-3 mt-1 rounded-lg"
+                className="block w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-3 mt-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
               >
                 <option>II</option>
                 <option>III</option>
@@ -188,7 +188,7 @@ export default function ApplicationsPage() {
                   required
                   inputMode="decimal"
                   pattern="[0-9]+([.][0-9]+)?"
-                  className="block w-full border p-3 mt-1 rounded-lg"
+                  className="block w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-3 mt-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </label>
             ))}
@@ -208,15 +208,15 @@ export default function ApplicationsPage() {
           </form>
         </section>
       )}
-      <section className="bg-white border rounded-xl overflow-hidden">
-        <div className="p-5 border-b">
-          <label className="text-sm text-slate-600">
+      <section className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+        <div className="p-5 border-b border-slate-200 dark:border-slate-700">
+          <label className="text-sm text-slate-700 dark:text-slate-200">
             Search applications
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Business, serial number, status or application ID"
-              className="block border rounded-lg p-3 w-full mt-2"
+              className="block border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 p-3 w-full mt-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
           </label>
         </div>
@@ -225,13 +225,13 @@ export default function ApplicationsPage() {
             Loading applications…
           </p>
         ) : visible.length === 0 ? (
-          <p className="p-10 text-center text-slate-500">
+          <p className="p-10 text-center text-slate-600 dark:text-slate-300">
             {query ? "No matching applications." : "No applications yet."}
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-500">
+              <thead className="bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300">
                 <tr>
                   {["Instrument", "Business", "Status", "Submitted", ""].map(
                     (h, i) => (
@@ -244,17 +244,17 @@ export default function ApplicationsPage() {
               </thead>
               <tbody>
                 {visible.map((a) => (
-                  <tr key={a.id} className="border-t">
+                  <tr key={a.id} className="border-t border-slate-200 dark:border-slate-700">
                     <td className="p-5">
                       <span className="font-semibold">{a.instrument.name}</span>
                       <br />
-                      <span className="text-slate-500">
+                      <span className="text-slate-600 dark:text-slate-300">
                         {a.instrument.serialNumber}
                       </span>
                     </td>
                     <td className="p-5">{a.businessName}</td>
                     <td className="p-5">
-                      <span className="text-xs rounded-full bg-teal-50 text-teal-800 px-3 py-1">
+                      <span className="text-xs rounded-full bg-teal-50 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200 px-3 py-1">
                         {a.status}
                       </span>
                     </td>
@@ -263,7 +263,7 @@ export default function ApplicationsPage() {
                     </td>
                     <td className="p-5">
                       <Link
-                        className="text-teal-700 font-semibold"
+                        className="text-teal-700 dark:text-teal-300 font-semibold"
                         href={`/applications/${a.id}`}
                       >
                         Open →
