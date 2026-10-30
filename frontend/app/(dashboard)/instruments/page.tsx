@@ -10,8 +10,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000'
+import { api } from '../../lib/api'
 
 interface Instrument {
   id: string
@@ -36,26 +35,19 @@ interface Instrument {
 export default function InstrumentsPage() {
   const [instruments, setInstruments] = useState<Instrument[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [refresh, setRefresh] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterClass, setFilterClass] = useState<string>('all')
 
   useEffect(() => {
-    const fetchInstruments = async () => {
-      try {
-        const token = localStorage.getItem('nawi_token')
-        const res = await fetch(`${API_BASE_URL}/api/v1/instruments`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        const data = await res.json()
-        setInstruments(data.data || [])
-      } catch (error) {
-        console.error('Failed to fetch instruments:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchInstruments()
-  }, [])
+    setLoading(true)
+    setError('')
+    api<Instrument[]>('/instruments')
+      .then(setInstruments)
+      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : 'Unable to load instruments.'))
+      .finally(() => setLoading(false))
+  }, [refresh])
 
   const filteredInstruments = instruments.filter(inst => {
     const matchesSearch =
@@ -111,6 +103,8 @@ export default function InstrumentsPage() {
           Register Instrument
         </Link>
       </div>
+
+      {error && <div role="alert" className="w8-feature-alert is-error w8-registry-error"><AlertCircle size={18} aria-hidden="true"/><span>{error}</span><button type="button" onClick={() => setRefresh(value => value + 1)}>Retry</button></div>}
 
       {/* Filters */}
       <div className="card p-4">
