@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '../../lib/api'
+import { useAccount } from '../../lib/account-context'
 
 interface Instrument {
   id: string
@@ -33,6 +34,7 @@ interface Instrument {
 }
 
 export default function InstrumentsPage() {
+  const account = useAccount()
   const [instruments, setInstruments] = useState<Instrument[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -95,13 +97,13 @@ export default function InstrumentsPage() {
             {filteredInstruments.length} instrument{filteredInstruments.length !== 1 ? 's' : ''} registered
           </p>
         </div>
-        <Link
+        {account?.role === 'Technician' && <Link
           href="/instruments/new"
           className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm transition-all shadow-lg shadow-indigo-600/20"
         >
           <PlusCircle className="w-4 h-4" />
           Register Instrument
-        </Link>
+        </Link>}
       </div>
 
       {error && <div role="alert" className="w8-feature-alert is-error w8-registry-error"><AlertCircle size={18} aria-hidden="true"/><span>{error}</span><button type="button" onClick={() => setRefresh(value => value + 1)}>Retry</button></div>}
