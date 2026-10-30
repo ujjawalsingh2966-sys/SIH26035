@@ -49,6 +49,16 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
     };
     return workspaceId ? withinDemoWorkspace(workspaceId, resolve) : resolve();
   } catch {
+    // A correctly signed token may have expired at exactly the same instant
+    // as its workspace. Report DEMO_EXPIRED without trusting an unsigned JWT.
+    try {
+      const signed = jwt.verify(authHeader.slice(7), config.jwtSecret, {
+        algorithms: ["HS256"], ignoreExpiration: true,
+      }) as { demoWorkspaceId?: string };
+      if (signed.demoWorkspaceId && !workspaceMetadata(signed.demoWorkspaceId)) {
+        return res.status(401).json({ success: false, code: "DEMO_EXPIRED", error: "Demo session expired" });
+      }
+    } catch { /* Invalid signatures retain generic Unauthorized response. */ }
     logger.warn("Failed authentication attempt: Invalid token");
     return res.status(401).json({ success: false, error: "Unauthorized: Invalid token" });
   }
