@@ -22,6 +22,13 @@ export async function api<T = any>(
   });
   const body = await res.json();
   if (!res.ok) {
+    if (body?.code === "DEMO_EXPIRED" && typeof window !== "undefined") {
+      localStorage.removeItem("nawi_token");
+      sessionStorage.removeItem("w8lab_evaluator_demo");
+      sessionStorage.setItem("w8lab_demo_expired_notice", "1");
+      window.dispatchEvent(new Event("demo-expired"));
+      throw new Error("Your 24-hour evaluator demo has expired.");
+    }
     if (
       res.status === 401 &&
       !path.startsWith("/auth/login") &&
