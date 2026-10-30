@@ -119,7 +119,7 @@ export default function ApplicationsPage() {
       </div>
       {alerts.length > 0 && (
         <section className="bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 rounded-xl p-5 text-amber-950 dark:text-amber-100">
-          <h2 className="font-semibold">Validity reminders</h2>
+          <h2 className="font-semibold text-amber-950 dark:text-amber-100">Validity reminders</h2>
           <p className="text-sm text-amber-900 dark:text-amber-200">
             Certificates expired or due within 30 days. Reminders are shown
             here; email/SMS delivery is not enabled.
