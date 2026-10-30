@@ -588,3 +588,8 @@ html { scroll-behavior: smooth; }
 .w8-feature-placeholder { display: flex; align-items: center; justify-content: center; min-height: 180px; font-size: 14px; color: #64776b; }
 @media(max-width: 1080px) { .w8-staff-grid { grid-template-columns: 1fr; } }
 @media(max-width: 580px) { .w8-feature-heading { flex-direction: column; align-items: flex-start; } .w8-staff-list li { flex-wrap: wrap; } .w8-staff-role { margin-left: 53px; } }
+
+/* Workflow overview metrics stay quiet; colour belongs to states and decisions. */
+.w8-kpi-glyph { display: grid; place-items: center; padding: 3px; color: #638577; }
+.w8-app-content .card:hover .w8-kpi-glyph { color: #176f60; }
+.w8-app-content .card .w8-kpi-glyph svg { stroke-width: 1.6px; }
