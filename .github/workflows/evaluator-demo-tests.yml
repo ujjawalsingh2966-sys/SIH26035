@@ -1,0 +1,39 @@
+name: Evaluator Demo — backend and frontend validation
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/evaluator-demo-tests.yml"
+  push:
+    branches:
+      - "feat/sih-evaluator-demo-access-20261025"
+permissions:
+  contents: read
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build --workspace backend
+      - run: npm test --workspace backend -- --runInBand --coverage=false
+  frontend-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build --workspace frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_PUBLIC_API_BASE_URL: "https://w8lab-api.onrender.com"

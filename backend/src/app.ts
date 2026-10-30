@@ -6,6 +6,7 @@ import { errorHandler } from "./middlewares/errorHandler";
 import healthRoutes from "./routes/health.routes";
 import authRoutes from "./routes/auth.routes";
 import { verificationRoutes } from "./routes/verificationRoutes";
+import { evaluatorDemoRoutes } from "./routes/evaluatorDemoRoutes";
 import { authenticate, requireRole } from "./middlewares/authResolver";
 
 import { manufacturerRoutes } from "./routes/manufacturerRoutes";
@@ -26,6 +27,7 @@ app.use(express.json());
 // Routes
 app.use("/api/v1/health", healthRoutes);
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/evaluator-demo", evaluatorDemoRoutes);
 app.use("/api/v1/verification", verificationRoutes);
 
 // Protected Domain Routes
