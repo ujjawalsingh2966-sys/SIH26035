@@ -80,7 +80,7 @@ export default function ApplicationPage({
       setBusy(false);
     }
   }
-  const field = "block w-full border rounded-lg p-3 mt-1";
+  const field = "block w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 rounded-lg p-3 mt-1 focus:outline-none focus:ring-2 focus:ring-teal-500";
   const button =
     "bg-teal-700 text-white rounded-lg px-5 py-3 disabled:opacity-50";
   if (!a)
@@ -97,15 +97,15 @@ export default function ApplicationPage({
   const officer =
     ["LMO", "GATC"].includes(user?.role || "") && a.officerId === user?.id;
   return (
-    <div className="space-y-6">
-      <Link href="/applications" className="text-teal-700 print:hidden">
+    <div className="space-y-6 text-slate-900 dark:text-slate-100">
+      <Link href="/applications" className="text-teal-700 dark:text-teal-300 print:hidden">
         ← Applications
       </Link>
       <div className="flex flex-wrap justify-between gap-3">
         <div>
-          <p className="text-xs text-slate-500 break-all">{a.id}</p>
-          <h1 className="text-3xl font-bold mt-2">{a.instrument.name}</h1>
-          <p className="text-slate-500 mt-2">
+          <p className="text-xs text-slate-600 dark:text-slate-300 break-all">{a.id}</p>
+          <h1 className="text-3xl font-bold mt-2 text-slate-900 dark:text-white">{a.instrument.name}</h1>
+          <p className="text-slate-600 dark:text-slate-300 mt-2">
             {a.businessName} ·{" "}
             {a.type === "INITIAL" ? "Initial verification" : "Re-verification"}
           </p>
@@ -119,23 +119,23 @@ export default function ApplicationPage({
           {error}
         </p>
       )}
-      <section className="bg-white border rounded-xl p-6 grid md:grid-cols-2 gap-5">
+      <section className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 grid md:grid-cols-2 gap-5">
         <div>
-          <h2 className="font-semibold">Instrument details</h2>
+          <h2 className="font-semibold text-slate-900 dark:text-white">Instrument details</h2>
           <p className="mt-2">
             {a.instrument.model} · Serial {a.instrument.serialNumber}
           </p>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
             Class {a.instrument.accuracyClass} · Max {a.instrument.maxCapacity}{" "}
             g · Min {a.instrument.minCapacity} g<br />
             e: {a.instrument.e} g · d: {a.instrument.d} g
           </p>
         </div>
         <div>
-          <h2 className="font-semibold">Verification location</h2>
+          <h2 className="font-semibold text-slate-900 dark:text-white">Verification location</h2>
           <p className="mt-2">{a.address}</p>
           {a.scheduledAt && (
-            <p className="text-teal-800 mt-2">
+            <p className="text-teal-800 dark:text-teal-300 mt-2">
               Appointment: {new Date(a.scheduledAt).toLocaleString()}
             </p>
           )}
@@ -143,8 +143,8 @@ export default function ApplicationPage({
       </section>
       {user?.role === "Administrator" &&
         ["SUBMITTED", "SCHEDULED"].includes(a.status) && (
-          <section className="bg-white border rounded-xl p-6">
-            <h2 className="text-xl font-semibold">Assign and schedule</h2>
+          <section className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Assign and schedule</h2>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -199,9 +199,9 @@ export default function ApplicationPage({
           </section>
         )}
       {officer && a.status === "SCHEDULED" && (
-        <section className="bg-white border rounded-xl p-6">
-          <h2 className="text-xl font-semibold">Record inspection</h2>
-          <p className="text-sm text-slate-500 mt-2">
+        <section className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Record inspection</h2>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
             Enter actual field observations in grams. This prototype evaluates
             weighing, eccentricity and tare using the existing limited
             calculation profile. It does not establish full regulatory
@@ -287,7 +287,7 @@ export default function ApplicationPage({
                         rows.filter((_, i) => i !== index),
                       )
                     }
-                    className="text-sm text-red-700 mt-3"
+                    className="text-sm text-red-700 dark:text-red-300 mt-3"
                   >
                     Remove observation
                   </button>
@@ -309,7 +309,7 @@ export default function ApplicationPage({
                   },
                 ])
               }
-              className="text-teal-700 underline"
+              className="text-teal-700 dark:text-teal-300 underline"
             >
               + Add observation
             </button>
@@ -334,8 +334,8 @@ export default function ApplicationPage({
         </section>
       )}
       {a.inspection && (
-        <section className="bg-white border rounded-xl p-6">
-          <h2 className="text-xl font-semibold">Inspection results</h2>
+        <section className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Inspection results</h2>
           <p className="mt-2 whitespace-pre-wrap">{a.inspection.notes}</p>
           <div className="overflow-x-auto mt-4">
             <table className="w-full text-sm text-left">
@@ -348,7 +348,7 @@ export default function ApplicationPage({
                     "MPE (g)",
                     "Result",
                   ].map((h) => (
-                    <th key={h} className="p-3 bg-slate-50">
+                    <th key={h} className="p-3 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-200">
                       {h}
                     </th>
                   ))}
@@ -356,7 +356,7 @@ export default function ApplicationPage({
               </thead>
               <tbody>
                 {a.inspection.observations.map((o: any, i: number) => (
-                  <tr key={i} className="border-t">
+                  <tr key={i} className="border-t border-slate-200 dark:border-slate-700">
                     <td className="p-3">{o.testType}</td>
                     <td className="p-3">{o.load}</td>
                     <td className="p-3">{o.evaluation.calculation.Ec.value}</td>
@@ -374,9 +374,9 @@ export default function ApplicationPage({
         </section>
       )}
       {officer && a.status === "INSPECTED" && (
-        <section className="bg-white border rounded-xl p-6">
-          <h2 className="text-xl font-semibold">Issue prototype certificate</h2>
-          <p className="text-sm text-slate-500 mt-2">
+        <section className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Issue prototype certificate</h2>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">
             All recorded observations must pass. Choose the validity end under
             your reviewed pilot policy; no statutory duration is assumed.
           </p>
@@ -414,8 +414,8 @@ export default function ApplicationPage({
         </section>
       )}
       {officer && ["SCHEDULED", "INSPECTED"].includes(a.status) && (
-        <details className="bg-white border rounded-xl p-6">
-          <summary className="cursor-pointer text-red-800">
+        <details className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+          <summary className="cursor-pointer text-red-800 dark:text-red-300">
             Reject application
           </summary>
           <form
@@ -451,31 +451,31 @@ export default function ApplicationPage({
         </p>
       )}
       {certificate && (
-        <section className="bg-white border border-teal-200 rounded-xl p-6">
+        <section className="bg-white dark:bg-slate-800 border border-teal-200 dark:border-teal-800 rounded-xl p-6">
           <div className="flex flex-wrap justify-between gap-4">
             <div>
-              <p className="text-teal-700 font-semibold text-sm">
+              <p className="text-teal-700 dark:text-teal-300 font-semibold text-sm">
                 QR-ENABLED PROTOTYPE CERTIFICATE
               </p>
-              <h2 className="text-xl font-bold mt-2 break-all">
+              <h2 className="text-xl font-bold mt-2 break-all text-slate-900 dark:text-white">
                 {certificate.id}
               </h2>
               <p className="mt-3">
                 Status: {certificate.status} · Valid until{" "}
                 {new Date(certificate.validUntil).toLocaleString()}
               </p>
-              <p className="mt-3 max-w-xl text-sm text-amber-900">
+              <p className="mt-3 max-w-xl text-sm text-amber-900 dark:text-amber-200">
                 {certificate.disclaimer}
               </p>
               <a
                 href={certificate.verificationUrl}
-                className="block underline text-teal-700 mt-4 break-all"
+                className="block underline text-teal-700 dark:text-teal-300 mt-4 break-all"
               >
                 Open public verification page
               </a>
               <button
                 onClick={() => window.print()}
-                className="mt-4 border rounded px-4 py-2 print:hidden"
+                className="mt-4 border border-slate-300 dark:border-slate-600 rounded px-4 py-2 print:hidden"
               >
                 Print / Save as PDF
               </button>
@@ -483,7 +483,7 @@ export default function ApplicationPage({
                 <button
                   disabled={busy}
                   onClick={renew}
-                  className="ml-3 text-teal-700 underline print:hidden"
+                  className="ml-3 text-teal-700 dark:text-teal-300 underline print:hidden"
                 >
                   Apply for re-verification
                 </button>
@@ -498,8 +498,8 @@ export default function ApplicationPage({
           </div>
         </section>
       )}
-      <section className="bg-white border rounded-xl p-6">
-        <h2 className="font-semibold text-xl">Application history</h2>
+      <section className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+        <h2 className="font-semibold text-xl text-slate-900 dark:text-white">Application history</h2>
         <ol className="mt-4 space-y-4">
           {a.history.map((h: any, i: number) => (
             <li key={i} className="border-l-2 border-teal-200 pl-4">
