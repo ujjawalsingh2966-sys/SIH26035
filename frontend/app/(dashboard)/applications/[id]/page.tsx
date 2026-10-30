@@ -97,7 +97,7 @@ export default function ApplicationPage({
   const officer =
     ["LMO", "GATC"].includes(user?.role || "") && a.officerId === user?.id;
   return (
-    <div className="space-y-6">
+    <div className="w8-application-detail space-y-6">
       <Link href="/applications" className="text-teal-700 print:hidden">
         ← Applications
       </Link>
