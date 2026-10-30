@@ -19,13 +19,21 @@ export default function Home() {
   const [workspace, setWorkspace] = useState<DemoWorkspace | null>(null)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
+  const [expiredNotice, setExpiredNotice] = useState(false)
   useEffect(() => {
+    if (sessionStorage.getItem('w8lab_demo_expired_notice')) {
+      setExpiredNotice(true)
+      sessionStorage.removeItem('w8lab_demo_expired_notice')
+    }
     try {
       const saved = sessionStorage.getItem('w8lab_evaluator_demo')
       if (saved) {
         const data = JSON.parse(saved) as DemoWorkspace
         if (Date.parse(data.expiresAt) > Date.now() && Array.isArray(data.credentials) && data.credentials.length === 3) setWorkspace(data)
-        else sessionStorage.removeItem('w8lab_evaluator_demo')
+        else {
+          sessionStorage.removeItem('w8lab_evaluator_demo')
+          setExpiredNotice(true)
+        }
       }
     } catch { sessionStorage.removeItem('w8lab_evaluator_demo') }
   }, [])
@@ -41,6 +49,7 @@ export default function Home() {
       const data = result.data as DemoWorkspace
       setWorkspace(data)
       sessionStorage.setItem('w8lab_evaluator_demo', JSON.stringify(data))
+      setExpiredNotice(false)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Demo service unavailable')
     } finally { setBusy('') }
@@ -102,6 +111,7 @@ export default function Home() {
           <h2 className="mt-3 text-3xl font-bold">Generate your private demo workspace</h2>
           <p className="mt-4 text-slate-300">Generate three temporary credentials and explore real role-based workflows. Your sample data is separate from live accounts and other evaluators. Accounts expire after 24 hours.</p>
         </div>
+        {expiredNotice && <div role="status" className="mt-6 rounded-lg border border-amber-500/50 bg-amber-950/50 px-4 py-3 text-amber-200">Your 24-hour demo session has expired. Generate a new demo workspace to continue.</div>}
         {error && <div role="alert" className="mt-6 rounded-lg border border-rose-500/50 bg-rose-950/50 px-4 py-3 text-rose-200">{error}</div>}
         {!workspace && <button disabled={busy !== ''} onClick={generate} className="mt-8 rounded-xl bg-indigo-500 px-6 py-3 font-semibold hover:bg-indigo-400 disabled:opacity-50 flex gap-2 items-center">
           {busy === 'generate' ? <Loader2 className="animate-spin"/> : <ShieldCheck/>} Generate Demo Credentials
