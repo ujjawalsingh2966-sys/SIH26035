@@ -593,3 +593,55 @@ html { scroll-behavior: smooth; }
 .w8-kpi-glyph { display: grid; place-items: center; padding: 3px; color: #638577; }
 .w8-app-content .card:hover .w8-kpi-glyph { color: #176f60; }
 .w8-app-content .card .w8-kpi-glyph svg { stroke-width: 1.6px; }
+
+
+/* Taste Skill — instrument registration workbench */
+.w8-intake-page { display: flex; flex-direction: column; gap: 25px; }
+.w8-intake-back { display: inline-flex; align-items: center; gap: 10px; width: fit-content; color: #467466; font-size: 13px; font-weight: 650; }
+.w8-intake-back:hover { color: #10594e; }
+.w8-intake-heading { display: flex; justify-content: space-between; align-items: end; gap: 30px; }
+.w8-intake-heading h1 { margin: 15px 0 8px; }
+.w8-intake-heading p { margin: 0; color: #61736a; font-size: 14px; }
+.w8-intake-progress { display: flex; flex-direction: column; gap: 9px; min-width: 125px; }
+.w8-intake-progress > span { font-size: 11px; color: #60766c; letter-spacing: .12em; font-weight: 700; }
+.w8-intake-progress > div { display: flex; gap: 7px; }
+.w8-intake-progress i { display: block; flex: 1; height: 5px; border-radius: 3px; background: #d8e2d9; }
+.w8-intake-progress i.done { background: #27796b; }
+.w8-intake-columns { display: grid; grid-template-columns: minmax(0, 1.57fr) minmax(230px,.73fr); gap: 22px; align-items: start; }
+.w8-intake-options { display: flex; flex-direction: column; gap: 9px; margin: 25px 0 10px; }
+.w8-intake-options label { display: flex; align-items: center; gap: 15px; padding: 16px; border: 1px solid #d7e2d9; border-radius: 9px; background: #f9faf7; cursor: pointer; }
+.w8-intake-options input { width: 19px; height: 19px; accent-color: #176b5f; flex: 0 0 19px; }
+.w8-intake-options label > span { display: flex; flex-direction: column; flex: 1; gap: 4px; }
+.w8-intake-options strong { font-size: 14px; font-weight: 650; }
+.w8-intake-options small { font-size: 12px; color: #687b70; }
+.w8-intake-options svg.selected { color: #187360; }
+.w8-intake-options svg.not-selected { color: #c4d0c5; }
+.w8-intake-form { display: flex; flex-direction: column; gap: 17px; padding-top: 25px; }
+.w8-intake-form label, .w8-manufacturer-form label { display: flex; flex-direction: column; gap: 8px; color: #344c40; font-size: 13px; font-weight: 650; }
+.w8-intake-form input:not([type="checkbox"]), .w8-intake-form select, .w8-manufacturer-form input { min-height: 46px; width: 100%; padding: 11px 12px; border: 1px solid #cad9d0; border-radius: 8px; color: #223c30; background: #fff; font-size: 14px; }
+.w8-intake-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.w8-intake-measure-label { color: #40806e; font-size: 11px; letter-spacing: .13em; font-weight: 740; border-top: 1px solid #e3eae2; padding-top: 21px; margin-top: 4px; }
+.w8-intake-inline { display: inline-flex; align-items: center; gap: 7px; width: fit-content; font-size: 13px; font-weight: 650; color: #176e60; }
+.w8-intake-inline:hover { text-decoration: underline; text-underline-offset: 3px; }
+.w8-manufacturer-form { display: flex; flex-direction: column; gap: 14px; padding: 20px; border: 1px solid #d6e3d8; border-radius: 9px; background: #f1f6ee; }
+.w8-manufacturer-form h3 { margin: 0; font-size: 17px; }
+.w8-intake-check { flex-direction: row !important; align-items: center; cursor: pointer; }
+.w8-intake-check input { accent-color: #1a7465; width: 18px; height: 18px; }
+.w8-intake-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 30px; border-top: 1px solid #e3eae1; padding-top: 23px; }
+.w8-intake-actions .w8-feature-button { width: auto; padding: 0 22px; gap: 12px; }
+.w8-intake-secondary { display: inline-flex; align-items: center; gap: 9px; padding: 11px 14px; font-size: 14px; border: 1px solid #cbd7cd; border-radius: 8px; font-weight: 650; color: #4b6555; }
+.w8-intake-aside { padding: clamp(25px,2.5vw,38px); border-radius: 15px; background: #1d4d43; color: #eff5e9; }
+.w8-intake-aside .w8-section-label { color: #b2d8c3; }
+.w8-intake-aside h2 { color: #f2f6eb; font-size: clamp(28px,2.4vw,38px); line-height: 1.17; margin: 30px 0 15px; letter-spacing: -.055em; }
+.w8-intake-aside > p { color: #b7d3c2; font-size: 14px; line-height: 1.7; }
+.w8-intake-aside-rule { width: 100%; height: 1px; background: #537b69; margin: 32px 0 12px; }
+.w8-intake-aside > div:not(.w8-section-label):not(.w8-intake-aside-rule):not(.w8-intake-aside-note) { padding: 15px 0; font-size: 13px; border-bottom: 1px solid #436e5c; }
+.w8-intake-aside > div > span { color: #99c6af; margin-right: 16px; }
+.w8-intake-aside-note { margin-top: 38px; font-size: 12px; line-height: 1.6; color: #b1ceba; }
+@media(max-width: 1100px) { .w8-intake-columns { grid-template-columns: 1fr; } .w8-intake-aside { display: none; } }
+@media(max-width: 600px) {
+  .w8-intake-heading { flex-direction: column; align-items: stretch; }
+  .w8-intake-row { grid-template-columns: 1fr; }
+  .w8-intake-actions { flex-wrap: wrap; }
+  .w8-intake-actions .w8-feature-button { width: 100%; }
+}
