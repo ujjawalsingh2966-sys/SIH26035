@@ -4,6 +4,7 @@ import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowRight, Check, Eye, EyeOff, LoaderCircle, Scale, ShieldCheck } from "lucide-react"
 import { post } from "../../lib/api"
+import { startEvaluatorDemo } from "../../lib/demo"
 
 const steps = [
   { number: "01", name: "Register instruments", detail: "Capture identification and verification parameters." },
@@ -22,6 +23,8 @@ export default function LoginPage() {
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [demoLoading, setDemoLoading] = useState(false)
+  const [demoError, setDemoError] = useState("")
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -47,6 +50,20 @@ export default function LoginPage() {
     } finally {
       pending.current = false
       setLoading(false)
+    }
+  }
+
+  const launchDemo = async () => {
+    if (demoLoading || loading) return
+    setDemoLoading(true)
+    setDemoError("")
+    try {
+      await startEvaluatorDemo()
+      router.replace("/dashboard")
+    } catch (cause: unknown) {
+      setDemoError(cause instanceof Error ? cause.message : "Unable to start demo access.")
+    } finally {
+      setDemoLoading(false)
     }
   }
 
@@ -115,6 +132,18 @@ export default function LoginPage() {
             <button className="w8-auth-toggle" type="button" disabled={loading} onClick={toggleMode}>
               {register ? "Already have an account? Sign in" : "New business? Create an account"} <ArrowRight size={15} aria-hidden="true"/>
             </button>
+            <section className="w8-demo-entry" aria-label="Evaluator demo access">
+              <div className="w8-demo-entry-top"><span className="w8-demo-dot" aria-hidden="true" /> EVALUATOR ACCESS</div>
+              <h3>Explore W8LAB for 24 hours</h3>
+              <p>Get one demo ID in this browser and switch between Lab Technician, Reviewing Officer and System Administrator. Demo records stay separate from real accounts.</p>
+              {demoError && <p role="alert" className="w8-auth-error">{demoError}</p>}
+              <button type="button" className="w8-demo-launch" onClick={launchDemo} disabled={loading || demoLoading}>
+                {demoLoading ? <LoaderCircle size={17} className="w8-auth-spinner" aria-hidden="true"/> : <ShieldCheck size={18} aria-hidden="true"/>}
+                {demoLoading ? "Preparing demo workspace…" : "Generate / Resume Demo ID"}
+                <ArrowRight size={17} aria-hidden="true"/>
+              </button>
+              <small>One session per browser profile (best effort). Clearing browser data or using another browser can create a new ID.</small>
+            </section>
             <div className="w8-auth-footnote">Staff accounts are provisioned by an administrator. For access or password assistance, contact your laboratory administrator.</div>
           </div>
         </section>
