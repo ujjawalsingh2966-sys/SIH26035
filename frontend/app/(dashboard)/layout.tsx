@@ -177,12 +177,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </header>
 
           <nav id="w8-mobile-navigation" aria-label="Mobile navigation" className={mobileOpen ? "w8-mobile-nav is-open" : "w8-mobile-nav"}>
+            {user.demo && <div className="w8-mobile-demo-summary"><strong>{user.demoId}</strong><span>Evaluator sandbox · expires {user.demoExpiresAt ? new Date(user.demoExpiresAt).toLocaleString() : "after 24 hours"}</span></div>}
             {navItems.map(item => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/")
               return <Link href={item.href} onClick={() => setMobileOpen(false)} key={item.href} aria-current={active ? "page" : undefined} className={active ? "w8-mobile-link is-active" : "w8-mobile-link"}><item.icon size={17} aria-hidden="true" />{item.name}</Link>
             })}
           </nav>
 
+          {demoError && <div className="w8-demo-global-error" role="alert">{demoError}</div>}
           <main className="w8-app-main"><div className="w8-app-content">{children}</div></main>
         </div>
       </div>
