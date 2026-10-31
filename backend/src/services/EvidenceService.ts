@@ -1,7 +1,7 @@
 import { EvidenceRecord } from '../types/evidence';
-import { JsonStore } from '../repositories/JsonStore';
+import { ScopedJsonStore } from '../repositories/ScopedJsonStore';
 
-const evidenceStore = new JsonStore<EvidenceRecord>('evidence.json');
+const evidenceStore = new ScopedJsonStore<EvidenceRecord>('evidence.json');
 
 export class EvidenceService {
   public static addEvidence(
