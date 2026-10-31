@@ -795,3 +795,8 @@ html { scroll-behavior: smooth; }
   .w8-demo-entry { padding: 17px; }
   .w8-demo-mobile-role select { max-width: 94px; }
 }
+
+.w8-demo-global-error { padding: 12px 18px; font-size: 13px; color: #95333c; background: #fce9ea; border-bottom: 1px solid #eac0c2; }
+.w8-mobile-demo-summary { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 9px; background: #ecf5ed; color: #21634f; font-size: 12px; }
+.w8-mobile-demo-summary strong { font-size: 13px; }
+.w8-mobile-demo-summary span { color: #557768; }
