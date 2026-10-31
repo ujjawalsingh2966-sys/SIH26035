@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { config } from "../config/env";
 import { accountStore } from "../services/AccountService";
 import { runInDemoScope } from "../services/DemoScope";
-import { verifyDemoToken } from "../services/DemoService";
+import { verifyDemoToken, isDemoAccessEnabled } from "../services/DemoService";
 import { logger } from "../utils/logger";
 
 // Type extension for Express Request
@@ -36,6 +36,7 @@ export const authenticate = (
       algorithms: ["HS256"],
     }) as { id: string; role: string; email: string; demo?: boolean; demoId?: string };
     if (decoded.demo === true) {
+      if (!isDemoAccessEnabled()) return res.status(401).json({ success: false, error: "Evaluator demo access is disabled." });
       const verified = verifyDemoToken(token);
       if (!verified) {
         return res.status(401).json({ success: false, error: "Demo access has expired. Generate a new demo ID." });
