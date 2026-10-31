@@ -18,6 +18,7 @@
 - An \`AsyncLocalStorage\` context selects persistent JSON stores under \`DATA_DIR/demo-sandboxes/<uuid>/\` for demo requests only. Ordinary requests continue to use the original stores under \`DATA_DIR\`.
 - Auth, staff, manufacturer, instrument, test, observation, evidence, audit, repository and application code all use the existing business logic; only the data namespace differs.
 - A separate unscoped \`demoSessions.json\` tracks creation time, expiry time and the mapped three demo account IDs. The private role passwords are randomly generated and not provided to the browser.
+- Expired session records and their private sandbox files are purged opportunistically when a new demo starts. Regular stores are not touched. This is not a wall-clock scheduled deletion guarantee.
 - The browser keeps a signed resume token under \`w8lab_demo_access\` in \`localStorage\`, and the backend also sets a signed \`HttpOnly\` cookie for supported browsers. The currently selected role token is stored under the application's existing \`nawi_token\`.
 - The ordinary \`/auth/login\` path cannot authenticate a demo account because it reads only the real-account store.
 - There are no device fingerprints, persistent hardware IDs or MAC-address claims.
