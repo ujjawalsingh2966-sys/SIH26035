@@ -81,6 +81,20 @@ describe("24-hour evaluator demo and sandbox isolation", () => {
     expect(accountStore.findById(initial.user.id)).toBeUndefined();
   });
 
+  it("keeps demo disabled in production-style configuration, including existing tokens", async () => {
+    const initial = (await start().expect(200)).body.data;
+    const savedFlag = process.env.DEMO_ACCESS_ENABLED;
+    process.env.DEMO_ACCESS_ENABLED = "false";
+    try {
+      await start().expect(404);
+      await request(app).get(base + "/auth/me")
+        .auth(initial.token, { type: "bearer" }).expect(401);
+    } finally {
+      if (savedFlag === undefined) delete process.env.DEMO_ACCESS_ENABLED;
+      else process.env.DEMO_ACCESS_ENABLED = savedFlag;
+    }
+  });
+
   it("rejects unsupported role switching, expired sessions and replayed tokens", async () => {
     const first = (await start().expect(200)).body.data;
     await request(app).post(base + "/auth/demo/switch")
