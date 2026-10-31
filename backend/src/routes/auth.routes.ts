@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { demoCookie, demoRoles, isDemoAccessEnabled, resumeDemoSession, switchDemoRole, DEMO_COOKIE, DemoRole } from "../services/DemoService";
+import { demoCookie, demoRoles, isDemoAccessEnabled, resumeDemoSession, switchDemoRole, verifyDemoToken, DEMO_COOKIE, DemoRole } from "../services/DemoService";
 import { body } from "express-validator";
 import jwt from "jsonwebtoken";
 import { config } from "../config/env";
@@ -97,8 +97,12 @@ router.post("/demo/start", (req, res) => {
   try {
     const rawCookie = req.headers.cookie?.split(";").map(x => x.trim())
       .find(x => x.startsWith(DEMO_COOKIE + "="))?.slice(DEMO_COOKIE.length + 1);
-    const cookieToken = rawCookie ? decodeURIComponent(rawCookie) : undefined;
-    const previousToken = cookieToken || req.header("x-w8lab-demo-token") || undefined;
+    let cookieToken: string | undefined;
+    try { cookieToken = rawCookie ? decodeURIComponent(rawCookie) : undefined; } catch { /* Ignore malformed browser cookies. */ }
+    const browserToken = req.header("x-w8lab-demo-token") || undefined;
+    // Prefer a currently valid capability. An old cookie must not override a
+    // newer browser token and accidentally create a second demo session.
+    const previousToken = [cookieToken, browserToken].find(token => !!token && !!verifyDemoToken(token));
     const access = resumeDemoSession(previousToken);
     res.setHeader("Set-Cookie", demoCookie(access.token, access.demo.expiresAt));
     res.json({ success: true, data: access });
