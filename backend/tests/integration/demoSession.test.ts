@@ -95,5 +95,8 @@ describe("24-hour evaluator demo and sandbox isolation", () => {
       .auth(first.token, { type: "bearer" }).send({ role: "Administrator" }).expect(401);
     const renewed = (await start().set("X-W8LAB-Demo-Token", first.token).expect(200)).body.data;
     expect(renewed.demo.id).not.toBe(first.demo.id);
+    expect(demoSessionStore.findById(registry!.id)).toBeUndefined();
+    const active = demoSessionStore.findAll().find(s => renewed.demo.id.endsWith(s.id.replace(/-/g, "").slice(0, 12).toUpperCase()));
+    expect(active).toBeDefined();
   });
 });
