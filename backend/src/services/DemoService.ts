@@ -59,11 +59,13 @@ function accessFor(session: DemoSession, role: DemoRole) {
   return runInDemoScope(session.id, () => {
     const user = accountStore.findById(session.accounts[role]);
     if (!user || !user.active || user.role !== role) throw new Error("Demo account unavailable");
-    // JWT expires at the original session deadline, including after a role switch.
-    const seconds = Math.max(1, Math.floor((Date.parse(session.expiresAt) - Date.now()) / 1000));
+    // JWT timestamps use whole seconds. Round up so a valid session does not
+    // expire early; activeDemoSession still enforces the exact millisecond
+    // deadline on every request and after every role switch.
+    const expires = Math.ceil(Date.parse(session.expiresAt) / 1000);
     const token = jwt.sign({
-      demo: true, demoId: session.id, id: user.id, role, email: user.email,
-    }, config.jwtSecret, { algorithm: "HS256", audience: "w8lab-demo", expiresIn: seconds });
+      demo: true, demoId: session.id, id: user.id, role, email: user.email, exp: expires,
+    }, config.jwtSecret, { algorithm: "HS256", audience: "w8lab-demo" });
     return {
       token,
       user: { ...publicAccount(user), demo: true, demoId: demoReference(session.id),

@@ -175,6 +175,7 @@ describe("24-hour evaluator demo and sandbox isolation", () => {
       await request(app).get(base + "/instruments").auth(first.token, { type: "bearer" }).expect(200);
       clock.mockReturnValue(deadline - 1);
       expect(activeDemoSession(session.id)).not.toBeNull();
+      await request(app).get(base + "/instruments").auth(first.token, { type: "bearer" }).expect(200);
       clock.mockReturnValue(deadline);
       expect(activeDemoSession(session.id)).toBeNull();
       await request(app).get(base + "/instruments").auth(first.token, { type: "bearer" }).expect(401);
