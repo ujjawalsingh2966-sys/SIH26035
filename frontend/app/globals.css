@@ -394,9 +394,12 @@ html { scroll-behavior: smooth; }
   border-bottom: 1px solid var(--w8-line); background: var(--w8-paper);
 }
 .w8-topbar-start,.w8-topbar-end { display: flex; align-items: center; gap: 17px; }
-.w8-topbar-breadcrumb { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+.w8-topbar-start { min-width: 0; flex: 1; }
+.w8-topbar-end { flex-shrink: 0; }
+.w8-topbar-breadcrumb { display: flex; align-items: center; gap: 12px; min-width: 0; font-size: 13px; }
+.w8-topbar-breadcrumb > span { flex-shrink: 0; }
 .w8-topbar-breadcrumb > span:first-child { color: #65736c; font-weight: 600; }
-.w8-topbar-breadcrumb strong { font-weight: 680; color: var(--w8-ink); }
+.w8-topbar-breadcrumb strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 680; color: var(--w8-ink); }
 .w8-crumb-separator { color: #a8b5ae; }
 .w8-role-tag { border: 1px solid #d6e3dd; background: #edf4ef; color: #295b50; border-radius: 99px; padding: 5px 13px; font-size: 12px; font-weight: 620; }
 .w8-app-main { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; background: var(--w8-ground); }
@@ -458,7 +461,7 @@ html { scroll-behavior: smooth; }
   .w8-topbar { min-height: 62px; flex-basis: 62px; padding: 0 16px; }
   .w8-topbar-breadcrumb { font-size: 13px; gap: 8px; }
   .w8-role-tag { padding: 5px 9px; font-size: 11px; max-width: 110px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
-  .w8-mobile-toggle,.w8-mobile-signout { display: grid; place-items: center; }
+  .w8-mobile-toggle,.w8-mobile-signout { display: grid; place-items: center; flex-shrink: 0; }
   .w8-topbar-start { gap: 8px; }
   .w8-mobile-nav { display: none; padding: 10px 16px 14px; background: #fffefa; border-bottom: 1px solid var(--w8-line); overflow-x: auto; }
   .w8-mobile-nav.is-open { display: flex; flex-direction: column; gap: 5px; }

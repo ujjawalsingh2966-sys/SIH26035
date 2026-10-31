@@ -1,4 +1,28 @@
-# W8LAB — Taste Skill frontend redesign (review branch)
+# W8LAB — Taste Skill frontend redesign
+
+## Integration review — 31 October 2026
+
+The user approved the redesign's visual direction and requested review followed by integration into `main`.
+
+Review corrections:
+- Explicitly use the paper workspace's light theme. Legacy OS-driven Tailwind dark variants otherwise render white text on the redesigned light cards, including instrument names and dashboard metrics. Dark variants now require an explicit class, and the document declares its light theme.
+- Allow the workspace breadcrumb to shrink and truncate long page names while keeping the mobile navigation and sign-out controls available.
+
+Verified locally after these corrections:
+- Next.js production build, TypeScript and build lint passed.
+- Backend TypeScript build and all 96 tests across 12 suites passed.
+- Standalone landing TypeScript and Vite production build passed.
+- Sixteen targeted React component checks passed with mocked APIs: all six role redirects, Business registration feedback, sign-in error and duplicate-submit handling, staff navigation permissions, mobile navigation, exact-decimal instrument validation and intake responses, plus landing carousel, tabs, FAQ and unavailable links.
+- Production HTTP checks returned successful responses for the login, seven CSS/JavaScript assets and eight operational/public routes. The existing root-to-login redirect source is unchanged.
+- Disposable local accounts verified all six real sign-in/account API contracts, staff access restrictions, and manufacturer registration → instrument registration → test-case retrieval through the unchanged backend.
+- `git diff --check` passed. No backend source, authentication contract, computation or persistence changes are included.
+
+Remaining verification limits:
+- Live browser screenshots, viewport-specific visual/keyboard checks and print preview were not completed. Vercel preview authentication blocked the cloud browser; automatic approval review rejected the protected-fetch operation because it creates a temporary share link. The remote browser could not reach the local server. No deployment protection or sharing settings were changed.
+- The React component checks exercise component behavior rather than a real browser. They do not establish deployed end-to-end or visual acceptance.
+- The landing remains a separate application. Merging the frontend does not publish or configure a separate landing deployment or its optional CTA destinations.
+
+The implementation notes and original release checklist below retain the follow-up browser and deployment checks.
 
 ## Design source
 - Skill: https://github.com/Leonxlnx/taste-skill
