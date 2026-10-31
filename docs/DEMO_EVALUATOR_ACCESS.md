@@ -19,6 +19,7 @@
 - Verified locally: 103 backend tests across 13 suites, backend TypeScript build, Next.js production build/type checking/build lint, landing TypeScript/Vite build, and `git diff --check`.
 - Ten targeted client/React checks passed with mocked networking, including duplicate starts, two initial tabs, retry after failure, authenticated role switching, ordinary sign-in coexistence, role UI and error feedback.
 - New API regression coverage checks observation/evidence/report namespace separation, demo staff isolation, the exact server expiry boundary and invalid signed token claims.
+- JWT timestamps round up to a whole second while the server checks the original millisecond deadline. API access is tested at one millisecond before expiry and at expiry, preventing early replacement IDs without extending the session.
 - These checks do not constitute live browser acceptance, cross-site cookie validation or production activation. Production stays disabled unless its backend explicitly sets `DEMO_ACCESS_ENABLED=true`; no service settings or production data are changed by this merge review.
 
 ## Technical architecture
