@@ -27,7 +27,11 @@ function saveDemoAccess(access: DemoAccess) {
   localStorage.setItem("nawi_token", access.token);
 }
 
-export async function startEvaluatorDemo(): Promise<DemoAccess> {
+let pendingDemoStart: Promise<DemoAccess> | undefined;
+
+async function requestDemoAccess(): Promise<DemoAccess> {
+  // Read storage after acquiring the browser lock: another tab may have
+  // created the shared session while this tab was waiting.
   const previous = localStorage.getItem("w8lab_demo_access");
   const response = await fetch(`${API_BASE_URL}/api/v1/auth/demo/start`, {
     method: "POST",
@@ -37,6 +41,15 @@ export async function startEvaluatorDemo(): Promise<DemoAccess> {
   const access = await decodeResponse(response);
   saveDemoAccess(access);
   return access;
+}
+
+export function startEvaluatorDemo(): Promise<DemoAccess> {
+  if (pendingDemoStart) return pendingDemoStart;
+  const request = typeof navigator !== "undefined" && navigator.locks
+    ? navigator.locks.request("w8lab-evaluator-demo-start", requestDemoAccess)
+    : requestDemoAccess();
+  pendingDemoStart = Promise.resolve(request).finally(() => { pendingDemoStart = undefined; });
+  return pendingDemoStart;
 }
 
 export async function switchEvaluatorRole(role: EvaluatorRole): Promise<DemoAccess> {

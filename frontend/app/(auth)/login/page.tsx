@@ -54,7 +54,8 @@ export default function LoginPage() {
   }
 
   const launchDemo = async () => {
-    if (demoLoading || loading) return
+    if (pending.current) return
+    pending.current = true
     setDemoLoading(true)
     setDemoError("")
     try {
@@ -63,12 +64,13 @@ export default function LoginPage() {
     } catch (cause: unknown) {
       setDemoError(cause instanceof Error ? cause.message : "Unable to start demo access.")
     } finally {
+      pending.current = false
       setDemoLoading(false)
     }
   }
 
   const toggleMode = () => {
-    if (loading) return
+    if (loading || demoLoading) return
     setRegister(current => !current)
     setError("")
     setMessage("")
@@ -124,12 +126,12 @@ export default function LoginPage() {
                   <button type="button" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword(current => !current)}>{showPassword ? <EyeOff size={19}/> : <Eye size={19}/>}</button>
                 </div>
               </div>
-              <button className="w8-auth-submit" type="submit" disabled={loading}>
+              <button className="w8-auth-submit" type="submit" disabled={loading || demoLoading}>
                 {loading ? <LoaderCircle size={19} className="w8-auth-spinner" aria-hidden="true"/> : <span>{register ? "Create business account" : "Sign in to workspace"}</span>}
                 {loading ? (register ? "Creating account…" : "Signing in…") : <ArrowRight size={19} aria-hidden="true"/>}
               </button>
             </form>
-            <button className="w8-auth-toggle" type="button" disabled={loading} onClick={toggleMode}>
+            <button className="w8-auth-toggle" type="button" disabled={loading || demoLoading} onClick={toggleMode}>
               {register ? "Already have an account? Sign in" : "New business? Create an account"} <ArrowRight size={15} aria-hidden="true"/>
             </button>
             <section className="w8-demo-entry" aria-label="Evaluator demo access">
