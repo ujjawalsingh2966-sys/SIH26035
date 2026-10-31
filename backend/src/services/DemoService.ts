@@ -1,7 +1,10 @@
 import { randomBytes, randomUUID } from "crypto";
+import fs from "fs";
+import path from "path";
 import jwt from "jsonwebtoken";
 import { config } from "../config/env";
 import { JsonStore } from "../repositories/JsonStore";
+import { ScopedJsonStore } from "../repositories/ScopedJsonStore";
 import { manufacturerStore, instrumentStore, testCaseStore } from "../repositories";
 import { accountStore, createAccount, publicAccount } from "./AccountService";
 import { runInDemoScope } from "./DemoScope";
@@ -131,7 +134,33 @@ export function createDemoSession() {
   return accessFor(session, "Technician");
 }
 
+/**
+ * Reclaim only expired evaluator sandboxes. Ordinary records under DATA_DIR
+ * are never deleted and every candidate sandbox name must be a UUID.
+ * Called on demo creation, so a separate cleanup service is unnecessary
+ * for small pilot deployments.
+ */
+export function purgeExpiredDemoSessions() {
+  const root = process.env.DATA_DIR || path.resolve(__dirname, "../../../data");
+  const sandboxRoot = path.resolve(root, "demo-sandboxes");
+  for (const session of demoSessionStore.findAll()) {
+    if (session.active && Date.parse(session.expiresAt) > Date.now()) continue;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(session.id)) continue;
+    const folder = path.resolve(sandboxRoot, session.id);
+    if (!folder.startsWith(sandboxRoot + path.sep)) continue;
+    try {
+      fs.rmSync(folder, { recursive: true, force: true });
+      ScopedJsonStore.forgetDemo(session.id);
+      demoSessionStore.deleteItem(session.id);
+    } catch {
+      // Don't deny new valid demos because an expired sandbox cannot be removed.
+      // The expired session remains inaccessible and can be retried on next start.
+    }
+  }
+}
+
 export function resumeDemoSession(previousToken?: string) {
+  purgeExpiredDemoSessions();
   const existing = previousToken && verifyDemoToken(previousToken);
   return existing ? accessFor(existing.session, existing.role) : createDemoSession();
 }
