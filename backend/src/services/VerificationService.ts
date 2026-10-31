@@ -1,6 +1,6 @@
 import { randomUUID, randomBytes } from "crypto";
 import Decimal from "decimal.js";
-import { JsonStore } from "../repositories/JsonStore";
+import { ScopedJsonStore } from "../repositories/ScopedJsonStore";
 import { Instrument, ObservationEvaluation } from "../types/domain";
 import { EvaluationService, RawObservationInput } from "./EvaluationService";
 import { accountStore } from "./AccountService";
@@ -47,7 +47,7 @@ export interface VerificationApplication {
   rejectionReason?: string;
   history: { action: string; actorId: string; at: string; note?: string }[];
 }
-export const applicationStore = new JsonStore<VerificationApplication>(
+export const applicationStore = new ScopedJsonStore<VerificationApplication>(
   "applications.json",
 );
 export class HttpError extends Error {

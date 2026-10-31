@@ -20,7 +20,7 @@ const app = express();
 
 // Security and utility middleware
 app.use(helmet());
-app.use(cors({ origin: config.clientUrl }));
+app.use(cors({ origin: config.clientUrl, credentials: true }));
 app.use(express.json());
 
 // Routes

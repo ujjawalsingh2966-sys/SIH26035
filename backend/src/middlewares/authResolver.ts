@@ -2,13 +2,15 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config/env";
 import { accountStore } from "../services/AccountService";
+import { runInDemoScope } from "../services/DemoScope";
+import { verifyDemoToken, isDemoAccessEnabled } from "../services/DemoService";
 import { logger } from "../utils/logger";
 
 // Type extension for Express Request
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: string; role: string; email: string };
+      user?: { id: string; role: string; email: string; demo?: boolean; demoId?: string; demoExpiresAt?: string };
     }
   }
 }
@@ -32,7 +34,25 @@ export const authenticate = (
   try {
     const decoded = jwt.verify(token, config.jwtSecret, {
       algorithms: ["HS256"],
-    }) as { id: string; role: string; email: string };
+    }) as { id: string; role: string; email: string; demo?: boolean; demoId?: string };
+    if (decoded.demo === true) {
+      if (!isDemoAccessEnabled()) return res.status(401).json({ success: false, error: "Evaluator demo access is disabled." });
+      const verified = verifyDemoToken(token);
+      if (!verified) {
+        return res.status(401).json({ success: false, error: "Demo access has expired. Generate a new demo ID." });
+      }
+      return runInDemoScope(verified.session.id, () => {
+        const account = accountStore.findById(decoded.id);
+        if (!account || !account.active || account.role !== verified.role) {
+          return res.status(401).json({ success: false, error: "Demo account is unavailable." });
+        }
+        req.user = { id: account.id, email: account.email, role: account.role,
+          demo: true, demoId: verified.session.id, demoExpiresAt: verified.session.expiresAt };
+        next();
+      });
+    }
+    // Prevent demo-claim-bearing tokens from falling back to real account authentication.
+    if (decoded.demoId) return res.status(401).json({ success: false, error: "Invalid session" });
     const account = accountStore.findById(decoded.id);
     if (!account || !account.active || account.role !== decoded.role) {
       return res

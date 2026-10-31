@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { demoCookie, demoRoles, isDemoAccessEnabled, resumeDemoSession, switchDemoRole, verifyDemoToken, DEMO_COOKIE, DemoRole } from "../services/DemoService";
 import { body } from "express-validator";
 import jwt from "jsonwebtoken";
 import { config } from "../config/env";
@@ -88,10 +89,55 @@ router.post(
     res.json({ success: true, data: { token, user: publicAccount(account) } });
   },
 );
+// One anonymous demo session per browser profile, reused via its signed token or cookie.
+// Both the 24-hour deadline and role transitions are enforced by the backend.
+router.post("/demo/start", (req, res) => {
+  if (!isDemoAccessEnabled())
+    return res.status(404).json({ success: false, error: "Evaluator demo access is not enabled." });
+  try {
+    const rawCookie = req.headers.cookie?.split(";").map(x => x.trim())
+      .find(x => x.startsWith(DEMO_COOKIE + "="))?.slice(DEMO_COOKIE.length + 1);
+    let cookieToken: string | undefined;
+    try { cookieToken = rawCookie ? decodeURIComponent(rawCookie) : undefined; } catch { /* Ignore malformed browser cookies. */ }
+    const browserToken = req.header("x-w8lab-demo-token") || undefined;
+    // Prefer a currently valid capability. An old cookie must not override a
+    // newer browser token and accidentally create a second demo session.
+    const previousToken = [cookieToken, browserToken].find(token => !!token && !!verifyDemoToken(token));
+    const access = resumeDemoSession(previousToken);
+    res.setHeader("Set-Cookie", demoCookie(access.token, access.demo.expiresAt));
+    res.json({ success: true, data: access });
+  } catch {
+    res.status(500).json({ success: false, error: "Unable to create demo access." });
+  }
+});
+
+router.post(
+  "/demo/switch", authenticate,
+  body("role").isIn([...demoRoles]), validateRequest,
+  (req, res) => {
+    if (!req.user?.demo)
+      return res.status(403).json({ success: false, error: "Only evaluator demo sessions can switch demo roles." });
+    try {
+      const token = req.headers.authorization!.slice("Bearer ".length);
+      const access = switchDemoRole(token, req.body.role as DemoRole);
+      res.setHeader("Set-Cookie", demoCookie(access.token, access.demo.expiresAt));
+      res.json({ success: true, data: access });
+    } catch {
+      res.status(401).json({ success: false, error: "Demo access expired or invalid." });
+    }
+  },
+);
 router.get("/me", authenticate, (req, res) =>
   res.json({
     success: true,
-    data: publicAccount(accountStore.findById(req.user!.id)!),
+    data: {
+      ...publicAccount(accountStore.findById(req.user!.id)!),
+      ...(req.user?.demo ? {
+        demo: true,
+        demoId: "W8-DEMO-" + req.user.demoId!.replace(/-/g, "").slice(0, 12).toUpperCase(),
+        demoExpiresAt: req.user.demoExpiresAt,
+      } : {}),
+    },
   }),
 );
 router.get("/staff", authenticate, requireRole(["Administrator"]), (req, res) =>
