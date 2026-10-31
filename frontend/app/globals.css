@@ -760,3 +760,38 @@ html { scroll-behavior: smooth; }
   .w8-lab-workspace .card { min-height: 0; }
   .w8-registry-error { flex-wrap: wrap; }
 }
+
+
+/* SIH evaluator demo — explicit, readable controls with no privileged shortcuts. */
+.w8-demo-entry {
+  margin-top: 28px; padding: 22px; border: 1px solid #c9dfd0;
+  border-radius: 12px; background: #ecf5ed;
+}
+.w8-demo-entry-top { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 750; color: #1a6d58; letter-spacing: .11em; }
+.w8-demo-dot { width: 8px; height: 8px; border-radius: 50%; background: #237b67; }
+.w8-demo-entry h3 { color: #23483a; margin: 12px 0 8px; font-size: 21px; font-weight: 680; letter-spacing: -.035em; }
+.w8-demo-entry p { color: #4d675b; line-height: 1.6; font-size: 13px; margin: 0 0 18px; }
+.w8-demo-entry .w8-auth-error { margin-bottom: 12px; }
+.w8-demo-launch { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; color: #fff; background: #166758; border-radius: 8px; min-height: 48px; padding: 11px 14px; font-size: 13px; font-weight: 690; }
+.w8-demo-launch:hover:not(:disabled) { background: #104d41; }
+.w8-demo-launch:disabled { opacity: .6; cursor: wait; }
+.w8-demo-entry > small { display: block; margin-top: 14px; font-size: 11px; color: #587266; line-height: 1.6; }
+.w8-demo-session-card { margin-bottom: 18px; padding: 16px; border-radius: 11px; background: #e2eee3; color: #234e3e; }
+.w8-demo-session-label { color: #286e5a; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+.w8-demo-session-card strong { display: block; font-size: 13px; margin: 11px 0 5px; letter-spacing: .01em; overflow-wrap: anywhere; }
+.w8-demo-session-card > span { display: block; color: #557365; font-size: 11px; }
+.w8-demo-session-card label { display: block; margin: 18px 0 7px; font-size: 12px; font-weight: 700; }
+.w8-demo-session-card select { width: 100%; border: 1px solid #adcbb7; border-radius: 8px; color: #1b5b4a; background: #f9fdf9; font-size: 13px; padding: 10px; }
+.w8-demo-session-card small { display: block; font-size: 11px; margin-top: 11px; color: #536d60; line-height: 1.55; }
+.w8-demo-session-card .w8-demo-error { color: #922c37; }
+.w8-demo-top-tag { display: inline-flex; align-items: center; color: #1b6856; background: #e2f1e7; border-radius: 20px; padding: 6px 10px; font-size: 11px; font-weight: 700; letter-spacing: .015em; }
+.w8-demo-mobile-role { display: none; }
+@media(max-width: 767px) {
+  .w8-demo-top-tag { display: none; }
+  .w8-demo-mobile-role { display: block; }
+  .w8-demo-mobile-role select { font-size: 12px; font-weight: 650; color: #235b4d; padding: 8px; border-radius: 8px; border: 1px solid #b7d0c2; background: #eaf5ed; max-width: 130px; }
+}
+@media(max-width: 480px) {
+  .w8-demo-entry { padding: 17px; }
+  .w8-demo-mobile-role select { max-width: 94px; }
+}
