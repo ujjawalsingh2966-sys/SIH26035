@@ -1,8 +1,13 @@
 import request from "supertest";
 import { randomUUID } from "crypto";
+import jwt from "jsonwebtoken";
 import app from "../../src/app";
+import { config } from "../../src/config/env";
 import { accountStore, createAccount } from "../../src/services/AccountService";
-import { demoSessionStore } from "../../src/services/DemoService";
+import { activeDemoSession, demoSessionStore } from "../../src/services/DemoService";
+import { instrumentStore, testCaseStore, observationStore, auditStore } from "../../src/repositories";
+import { applicationStore } from "../../src/services/VerificationService";
+import { EvidenceService } from "../../src/services/EvidenceService";
 
 const base = "/api/v1";
 const start = () => request(app).post(base + "/auth/demo/start");
@@ -112,5 +117,83 @@ describe("24-hour evaluator demo and sandbox isolation", () => {
     expect(demoSessionStore.findById(registry!.id)).toBeUndefined();
     const active = demoSessionStore.findAll().find(s => renewed.demo.id.endsWith(s.id.replace(/-/g, "").slice(0, 12).toUpperCase()));
     expect(active).toBeDefined();
+  });
+
+  it("keeps observations, evidence, reports, applications and new staff inside the demo namespace", async () => {
+    const before = {
+      accounts: accountStore.findAll(), instruments: instrumentStore.findAll(),
+      testCases: testCaseStore.findAll(), observations: observationStore.findAll(),
+      audit: auditStore.findAll(), applications: applicationStore.findAll(),
+    };
+    const first = (await start().expect(200)).body.data;
+    const second = (await start().expect(200)).body.data;
+    const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
+    const cases = await request(app).get(base + "/test-cases").set(auth(first.token)).expect(200);
+    const id = cases.body.data[0].id;
+    await request(app).put(`${base}/test-cases/${id}/status`).set(auth(first.token))
+      .send({ status: "TESTING" }).expect(200);
+    await request(app).post(base + "/observations").set(auth(first.token)).send({
+      testCaseId: id, testType: "WEIGHING", sequence: 1,
+      load: "5000", indication: "5000", additionalWeights: "2.5", zeroError: "0",
+    }).expect(201);
+    const evidence = await request(app).post(base + "/evidence").set(auth(first.token)).send({
+      testCaseId: id, testType: "GENERAL", description: "Disposable demo evidence",
+      fileName: "demo-note.txt", mimeType: "text/plain", sizeBytes: 4, fileData: "ZGVtbw==",
+    }).expect(201);
+    expect((await request(app).get(`${base}/observations/${id}`).set(auth(first.token)).expect(200)).body.data).toHaveLength(1);
+    expect((await request(app).get(`${base}/evidence/${id}`).set(auth(first.token)).expect(200)).body.data[0].id).toBe(evidence.body.data.id);
+    const ownReport = await request(app).get(`${base}/reports/${id}/data`).set(auth(first.token)).expect(400);
+    expect(ownReport.body.error).toMatch(/APPROVED/);
+    await request(app).get(`${base}/test-cases/${id}`).set(auth(second.token)).expect(404);
+    expect((await request(app).get(`${base}/observations/${id}`).set(auth(second.token)).expect(200)).body.data).toEqual([]);
+    expect((await request(app).get(`${base}/evidence/${id}`).set(auth(second.token)).expect(200)).body.data).toEqual([]);
+    const otherReport = await request(app).get(`${base}/reports/${id}/data`).set(auth(second.token)).expect(400);
+    expect(otherReport.body.error).toMatch(/Test case not found/);
+    const admin = (await request(app).post(base + "/auth/demo/switch").set(auth(first.token))
+      .send({ role: "Administrator" }).expect(200)).body.data;
+    const staff = await request(app).post(base + "/auth/staff").set(auth(admin.token)).send({
+      name: "Demo-only staff", email: `sandbox-${randomUUID()}@example.test`,
+      password: "only-in-sandbox-123", role: "Technician",
+    }).expect(201);
+    expect(accountStore.findById(staff.body.data.id)).toBeUndefined();
+    expect((await request(app).get(base + "/verification/applications").set(auth(admin.token)).expect(200)).body.data.applications).toEqual([]);
+    expect(EvidenceService.getEvidenceForTestCase(id)).toEqual([]);
+    expect({
+      accounts: accountStore.findAll(), instruments: instrumentStore.findAll(),
+      testCases: testCaseStore.findAll(), observations: observationStore.findAll(),
+      audit: auditStore.findAll(), applications: applicationStore.findAll(),
+    }).toEqual(before);
+  });
+
+  it("rejects demo API access and switching at the exact server expiry boundary", async () => {
+    const first = (await start().expect(200)).body.data;
+    const session = demoSessionStore.findAll().find(s => s.accounts.Technician === first.user.id)!;
+    const deadline = Date.parse(session.expiresAt);
+    const clock = jest.spyOn(Date, "now");
+    try {
+      clock.mockReturnValue(deadline - 2000);
+      await request(app).get(base + "/instruments").auth(first.token, { type: "bearer" }).expect(200);
+      clock.mockReturnValue(deadline - 1);
+      expect(activeDemoSession(session.id)).not.toBeNull();
+      clock.mockReturnValue(deadline);
+      expect(activeDemoSession(session.id)).toBeNull();
+      await request(app).get(base + "/instruments").auth(first.token, { type: "bearer" }).expect(401);
+      await request(app).post(base + "/auth/demo/switch").auth(first.token, { type: "bearer" })
+        .send({ role: "Administrator" }).expect(401);
+    } finally { clock.mockRestore(); }
+  });
+
+  it("rejects signed tokens with the wrong audience, role identity or demo claims", async () => {
+    const first = (await start().expect(200)).body.data;
+    const session = demoSessionStore.findAll().find(s => s.accounts.Technician === first.user.id)!;
+    const claims = { demo: true, demoId: session.id, id: first.user.id, role: "Technician", email: first.user.email };
+    const variants = [
+      jwt.sign(claims, config.jwtSecret, { audience: "wrong-audience", expiresIn: "1h" }),
+      jwt.sign({ ...claims, role: "Administrator" }, config.jwtSecret, { audience: "w8lab-demo", expiresIn: "1h" }),
+      jwt.sign({ ...claims, demo: false }, config.jwtSecret, { expiresIn: "1h" }),
+      jwt.sign(claims, config.jwtSecret, { audience: "w8lab-demo", expiresIn: -1 }),
+    ];
+    for (const token of variants)
+      await request(app).get(base + "/auth/me").auth(token, { type: "bearer" }).expect(401);
   });
 });

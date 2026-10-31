@@ -347,6 +347,7 @@ html { scroll-behavior: smooth; }
 .w8-workspace { display: flex; min-height: 100vh; height: 100vh; overflow: hidden; }
 .w8-sidebar {
   display: flex; flex-direction: column; flex: 0 0 252px;
+  overflow-y: auto; overscroll-behavior: contain;
   min-width: 0; border-right: 1px solid var(--w8-line);
   background: #f0f2ed; padding: 0 14px 16px;
 }
