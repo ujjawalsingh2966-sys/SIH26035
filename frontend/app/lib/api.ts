@@ -5,6 +5,9 @@ export interface User {
   name: string;
   email: string;
   role: string;
+  demo?: boolean;
+  demoId?: string;
+  demoExpiresAt?: string;
 }
 export async function api<T = any>(
   path: string,

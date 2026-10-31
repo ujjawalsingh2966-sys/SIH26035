@@ -8,11 +8,11 @@ export class JsonStore<T extends { id: string }> {
   private collection: Map<string, T> = new Map();
   private filePath: string;
 
-  constructor(filename: string) {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+  constructor(filename: string, directory: string = DATA_DIR) {
+    if (!fs.existsSync(directory)) {
+      fs.mkdirSync(directory, { recursive: true });
     }
-    this.filePath = path.join(DATA_DIR, filename);
+    this.filePath = path.join(directory, filename);
     this.load();
   }
 

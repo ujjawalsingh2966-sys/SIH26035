@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "crypto";
-import { JsonStore } from "../repositories/JsonStore";
+import { ScopedJsonStore } from "../repositories/ScopedJsonStore";
 
 export const roles = [
   "Business",
@@ -19,7 +19,7 @@ export interface Account {
   active: boolean;
   createdAt: string;
 }
-export const accountStore = new JsonStore<Account>("accounts.json");
+export const accountStore = new ScopedJsonStore<Account>("accounts.json");
 export const publicAccount = ({ passwordHash, ...account }: Account) => account;
 export function createAccount(
   name: string,

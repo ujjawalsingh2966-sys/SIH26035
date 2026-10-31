@@ -59,6 +59,7 @@ export default function App() {
   const repositoryUrl = (import.meta.env.VITE_REPOSITORY_URL || '').trim()
   const videoUrl = (import.meta.env.VITE_VIDEO_URL || '').trim()
   const signInUrl = appUrl ? appUrl + '/login' : ''
+  const evaluatorUrl = signInUrl ? signInUrl + '?demo=1' : ''
   const selected = stages[stage]
   const slideNames = ['Register', 'Evaluate', 'Review']
 
@@ -87,6 +88,7 @@ export default function App() {
         <a href="#questions" onClick={() => setMobileOpen(false)}>Questions</a>
       </nav>
       <div className="nav-actions">
+        <LinkOrUnavailable href={evaluatorUrl} className="nav-signin">Evaluator demo <ArrowUpRight size={16}/></LinkOrUnavailable>
         <LinkOrUnavailable href={signInUrl} className="nav-signin">Sign in <ArrowUpRight size={16}/></LinkOrUnavailable>
         <button className="menu-toggle" aria-expanded={mobileOpen} aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'} onClick={() => setMobileOpen(value => !value)}>{mobileOpen ? <X size={22}/> : <Menu size={22}/>}</button>
       </div>
@@ -99,7 +101,7 @@ export default function App() {
           <h1 id="hero-title">Every measure<br/><em>matters.</em></h1>
           <p>A focused workspace for instrument evaluation, laboratory observations and evidence-led review. Built for the detail behind each decision.</p>
           <div className="hero-actions">
-            <LinkOrUnavailable href={signInUrl} className="primary-action">Open W8LAB <ArrowUpRight size={19}/></LinkOrUnavailable>
+            <LinkOrUnavailable href={evaluatorUrl} className="primary-action">Get 24h evaluator demo <ArrowUpRight size={19}/></LinkOrUnavailable>
             <a href="#approach" className="secondary-action">Explore the process <ArrowDown size={18}/></a>
           </div>
           <div className="hero-meta"><span className="signal-dot"/> OIML R76-guided pilot platform <span className="hero-meta-line"/> NOT A STATUTORY CERTIFICATION SERVICE</div>

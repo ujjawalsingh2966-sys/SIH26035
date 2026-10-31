@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { api, User as AccountUser } from "../lib/api"
 import { AccountContext } from "../lib/account-context"
+import { EvaluatorRole, switchEvaluatorRole } from "../lib/demo"
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -23,6 +24,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [user, setUser] = useState<AccountUser | null>(null)
   const [error, setError] = useState("")
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [switchingRole, setSwitchingRole] = useState(false)
+  const [demoError, setDemoError] = useState("")
 
   useEffect(() => {
     const expired = () => router.replace("/login")
@@ -50,6 +53,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     setMobileOpen(false)
   }, [pathname])
+
+  async function changeRole(role: EvaluatorRole) {
+    if (switchingRole || !user?.demo || user.role === role) return
+    setSwitchingRole(true)
+    setDemoError("")
+    try {
+      await switchEvaluatorRole(role)
+      // A clean navigation refreshes every role-sensitive page and its API data.
+      window.location.assign("/dashboard")
+    } catch (cause: unknown) {
+      setDemoError(cause instanceof Error ? cause.message : "Unable to switch evaluator role.")
+      setSwitchingRole(false)
+    }
+  }
 
   function logout() {
     localStorage.removeItem("nawi_token")
@@ -107,6 +124,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </nav>
 
           <div className="w8-sidebar-end">
+            {user.demo && <div className="w8-demo-session-card">
+              <div className="w8-demo-session-label">EVALUATOR SANDBOX</div>
+              <strong>{user.demoId}</strong>
+              <span>Valid until {user.demoExpiresAt ? new Date(user.demoExpiresAt).toLocaleString() : "session expiry"}</span>
+              <label htmlFor="w8-demo-role-sidebar">Switch evaluator role</label>
+              <select id="w8-demo-role-sidebar" value={user.role} disabled={switchingRole} onChange={e => void changeRole(e.target.value as EvaluatorRole)}>
+                <option value="Technician">Lab Technician</option>
+                <option value="Reviewer">Reviewing Officer</option>
+                <option value="Administrator">System Administrator</option>
+              </select>
+              {demoError && <small role="alert" className="w8-demo-error">{demoError}</small>}
+              <small>Only demo records are accessible. Switching does not reset your session.</small>
+            </div>}
             <div className="w8-workspace-note">
               <span className="w8-note-rule" aria-hidden="true" />
               <span>Evidence-led instrument evaluation and verification workflows.</span>
@@ -131,16 +161,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </button>
               <div className="w8-topbar-breadcrumb"><span>W8LAB</span><span className="w8-crumb-separator">/</span><strong>{pageName}</strong></div>
             </div>
-            <div className="w8-topbar-end"><span className="w8-role-tag">{user.role}</span><button type="button" className="w8-mobile-signout" onClick={logout} aria-label="Sign out"><LogOut size={17} /></button></div>
+            <div className="w8-topbar-end">
+              {user.demo && <span className="w8-demo-top-tag" title={user.demoId}>DEMO · {user.demoId}</span>}
+              {user.demo && <label className="w8-demo-mobile-role">
+                <span className="sr-only">Switch evaluator role</span>
+                <select value={user.role} disabled={switchingRole} onChange={e => void changeRole(e.target.value as EvaluatorRole)}>
+                  <option value="Technician">Technician</option>
+                  <option value="Reviewer">Reviewer</option>
+                  <option value="Administrator">Admin</option>
+                </select>
+              </label>}
+              {!user.demo && <span className="w8-role-tag">{user.role}</span>}
+              <button type="button" className="w8-mobile-signout" onClick={logout} aria-label="Sign out"><LogOut size={17} /></button>
+            </div>
           </header>
 
           <nav id="w8-mobile-navigation" aria-label="Mobile navigation" className={mobileOpen ? "w8-mobile-nav is-open" : "w8-mobile-nav"}>
+            {user.demo && <div className="w8-mobile-demo-summary"><strong>{user.demoId}</strong><span>Evaluator sandbox · expires {user.demoExpiresAt ? new Date(user.demoExpiresAt).toLocaleString() : "after 24 hours"}</span></div>}
             {navItems.map(item => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/")
               return <Link href={item.href} onClick={() => setMobileOpen(false)} key={item.href} aria-current={active ? "page" : undefined} className={active ? "w8-mobile-link is-active" : "w8-mobile-link"}><item.icon size={17} aria-hidden="true" />{item.name}</Link>
             })}
           </nav>
 
+          {demoError && <div className="w8-demo-global-error" role="alert">{demoError}</div>}
           <main className="w8-app-main"><div className="w8-app-content">{children}</div></main>
         </div>
       </div>
