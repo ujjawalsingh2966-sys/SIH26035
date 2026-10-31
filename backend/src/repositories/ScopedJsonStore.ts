@@ -7,11 +7,17 @@ import { currentDemoId } from "../services/DemoScope";
  * their own persistent directory. A role switch never changes the directory.
  */
 export class ScopedJsonStore<T extends { id: string }> {
+  private static readonly instances = new Set<ScopedJsonStore<any>>();
   private readonly regular: JsonStore<T>;
   private readonly demos = new Map<string, JsonStore<T>>();
 
   constructor(private readonly filename: string) {
     this.regular = new JsonStore<T>(filename);
+    ScopedJsonStore.instances.add(this);
+  }
+
+  static forgetDemo(id: string) {
+    for (const store of ScopedJsonStore.instances) store.demos.delete(id);
   }
 
   private active(): JsonStore<T> {
