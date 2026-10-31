@@ -127,7 +127,7 @@ export default function TestsPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
+    <div className="w8-evaluation-queue space-y-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
