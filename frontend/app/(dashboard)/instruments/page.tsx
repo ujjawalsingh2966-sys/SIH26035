@@ -5,18 +5,13 @@ import {
   Scale,
   PlusCircle,
   Search,
-  MoreHorizontal,
-  Edit,
-  Trash2,
   Filter,
-  Download,
-  Upload,
   CheckCircle2,
   AlertCircle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000'
+import { api } from '../../lib/api'
+import { useAccount } from '../../lib/account-context'
 
 interface Instrument {
   id: string
@@ -39,28 +34,22 @@ interface Instrument {
 }
 
 export default function InstrumentsPage() {
+  const account = useAccount()
   const [instruments, setInstruments] = useState<Instrument[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [refresh, setRefresh] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterClass, setFilterClass] = useState<string>('all')
 
   useEffect(() => {
-    const fetchInstruments = async () => {
-      try {
-        const token = localStorage.getItem('nawi_token')
-        const res = await fetch(`${API_BASE_URL}/api/v1/instruments`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        const data = await res.json()
-        setInstruments(data.data || [])
-      } catch (error) {
-        console.error('Failed to fetch instruments:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchInstruments()
-  }, [])
+    setLoading(true)
+    setError('')
+    api<Instrument[]>('/instruments')
+      .then(setInstruments)
+      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : 'Unable to load instruments.'))
+      .finally(() => setLoading(false))
+  }, [refresh])
 
   const filteredInstruments = instruments.filter(inst => {
     const matchesSearch =
@@ -99,7 +88,7 @@ export default function InstrumentsPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
+    <div className="w8-instrument-registry space-y-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -108,14 +97,16 @@ export default function InstrumentsPage() {
             {filteredInstruments.length} instrument{filteredInstruments.length !== 1 ? 's' : ''} registered
           </p>
         </div>
-        <Link
+        {account?.role === 'Technician' && <Link
           href="/instruments/new"
           className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm transition-all shadow-lg shadow-indigo-600/20"
         >
           <PlusCircle className="w-4 h-4" />
           Register Instrument
-        </Link>
+        </Link>}
       </div>
+
+      {error && <div role="alert" className="w8-feature-alert is-error w8-registry-error"><AlertCircle size={18} aria-hidden="true"/><span>{error}</span><button type="button" onClick={() => setRefresh(value => value + 1)}>Retry</button></div>}
 
       {/* Filters */}
       <div className="card p-4">
@@ -238,27 +229,11 @@ export default function InstrumentsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Link
-                          href={`/test-cases?instrumentId=${instrument.id}`}
-                          className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
-                          title="View Test Cases"
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
+                      <div className="flex items-center justify-end">
+                        <Link href="/tests" className="w8-row-action" title="Open evaluation queue">
+                          <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                          Evaluation queue
                         </Link>
-                        <Link
-                          href="/instruments"
-                          className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Link>
-                        <button className="p-1.5 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                        <button className="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -272,16 +247,7 @@ export default function InstrumentsPage() {
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Showing {filteredInstruments.length} instrument{filteredInstruments.length !== 1 ? 's' : ''}
             </p>
-            <div className="flex items-center gap-2">
-              <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors">
-                <Download className="w-3.5 h-3.5" />
-                Export
-              </button>
-              <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors">
-                <Upload className="w-3.5 h-3.5" />
-                Import
-              </button>
-            </div>
+            <p className="text-xs text-slate-500">Import and export are not available in this pilot.</p>
           </div>
         )}
       </div>

@@ -1,6 +1,9 @@
 import type { Config } from 'tailwindcss'
 
 const config: Config = {
+  // The paper workspace uses an explicit light theme. Do not mix legacy
+  // OS-driven dark text utilities with its light surfaces.
+  darkMode: 'class',
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],

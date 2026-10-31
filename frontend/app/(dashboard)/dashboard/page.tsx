@@ -158,8 +158,8 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Dashboard</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Legal Metrology Compliance Platform</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Laboratory overview</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Instrument records, active evaluations and the work awaiting review.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -215,7 +215,7 @@ export default function DashboardPage() {
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Instruments</p>
                 <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{stats.totalInstruments}</p>
               </div>
-              <div className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/30 transition-colors">
+              <div className="w8-kpi-glyph">
                 <Scale className="w-6 h-6 text-slate-600 dark:text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400" />
               </div>
             </div>
@@ -229,7 +229,7 @@ export default function DashboardPage() {
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Active Tests</p>
                 <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{stats.activeTests}</p>
               </div>
-              <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/30 transition-colors">
+              <div className="w8-kpi-glyph">
                 <Clock className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
               </div>
             </div>
@@ -243,7 +243,7 @@ export default function DashboardPage() {
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Pending Review</p>
                 <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{stats.pendingReview}</p>
               </div>
-              <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg group-hover:bg-amber-100 dark:group-hover:bg-amber-900/30 transition-colors">
+              <div className="w8-kpi-glyph">
                 <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
               </div>
             </div>
@@ -257,7 +257,7 @@ export default function DashboardPage() {
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Returned</p>
                 <p className="text-3xl font-bold text-rose-600 dark:text-rose-400 mt-2">{stats.returned}</p>
               </div>
-              <div className="p-2.5 bg-rose-50 dark:bg-rose-900/20 rounded-lg group-hover:bg-rose-100 dark:group-hover:bg-rose-900/30 transition-colors">
+              <div className="w8-kpi-glyph">
                 <AlertTriangle className="w-6 h-6 text-rose-600 dark:text-rose-400" />
               </div>
             </div>
@@ -271,7 +271,7 @@ export default function DashboardPage() {
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Approved</p>
                 <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{stats.approved}</p>
               </div>
-              <div className="p-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/30 transition-colors">
+              <div className="w8-kpi-glyph">
                 <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
               </div>
             </div>
@@ -437,23 +437,23 @@ export default function DashboardPage() {
       {/* Recent Activity / Status */}
       <div className="card">
         <div className="p-5 border-b border-slate-100 dark:border-slate-700">
-          <h3 className="font-semibold text-slate-900 dark:text-white">Platform Status</h3>
+          <h3 className="font-semibold text-slate-900 dark:text-white">Workspace Information</h3>
         </div>
         <div className="p-5">
           <div className="flex flex-col md:flex-row gap-6 items-center">
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
-              <span className="text-sm text-slate-700 dark:text-slate-300">System Operational</span>
+              <div className="w-3 h-3 bg-slate-400 rounded-full" />
+              <span className="text-sm text-slate-700 dark:text-slate-300">Metrics reflect the last successful data load</span>
             </div>
             <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800 md:hidden" />
             <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
-                <span>Last sync: Just now</span>
+                <span>Refresh the page for current metrics</span>
               </div>
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4" />
-                <span>OIML R76 v2024</span>
+                <span>OIML R76-guided pilot</span>
               </div>
             </div>
           </div>

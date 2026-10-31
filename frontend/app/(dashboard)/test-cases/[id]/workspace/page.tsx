@@ -379,7 +379,7 @@ export default function TestCaseWorkspace({ params }: { params: { id: string } }
   }
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
+    <div className="w8-lab-workspace space-y-6 animate-fade-in-up">
       {/* Success Toast */}
       {showSuccessToast && (
         <div className="fixed top-4 right-4 z-50 animate-fade-in-up">
